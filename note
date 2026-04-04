@@ -8,3 +8,13 @@ http://localhost:8080/api/test/login
 ###汇率网址
 https://www.ecb.europa.eu/home/html/index.en.html
 ###下载汇率XML
+
+
+Cursor:
+一定能看到打印的地方
+在 Cursor 里打开底部 Terminal（终端）（菜单 View → Terminal，或快捷键 Ctrl+` / Cmd+`）。
+进入项目目录后执行：
+cd /Users/april/Desktop/cursor-project/nexus-future-currency-service
+./mvnw test
+所有 System.out 和 log.info 都会出现在这个终端窗口里，往上翻就能看到。
+

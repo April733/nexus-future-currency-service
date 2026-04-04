@@ -13,7 +13,8 @@ public class ExchangeRate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String date;          // 2026-04-03
+    /** 拉取时间，格式 yyyy-MM-dd HH:mm:ss（同日多次拉取可区分） */
+    private String date;
 
     @Column(length = 512)
     private String url;           // 保存请求的URL

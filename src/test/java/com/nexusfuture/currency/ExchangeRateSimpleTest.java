@@ -5,15 +5,12 @@ import com.nexusfuture.currency.repository.ExchangeRateRepository;
 import com.nexusfuture.currency.scheduler.ExchangeRateScheduler;
 import com.nexusfuture.currency.util.XmlExchangeRateUtil;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
-import java.util.List;
 
-@SpringBootApplication
 public class ExchangeRateSimpleTest {
 
     public static void main(String[] args) {
-        SpringApplication app = new SpringApplication(ExchangeRateSimpleTest.class);
+        SpringApplication app = new SpringApplication(ExchangeServiceApplication.class);
         app.setWebApplicationType(org.springframework.boot.WebApplicationType.NONE);
         ApplicationContext ctx = app.run(args);
 
@@ -25,8 +22,8 @@ public class ExchangeRateSimpleTest {
 
         // 取今天最新一条
         String today = java.time.LocalDate.now().toString();
-        List<ExchangeRate> rates = repository.findByDateOrderByIdDesc(today);
-        ExchangeRate rate = rates.get(0);
+        ExchangeRate rate = repository.findFirstByDateStartingWithOrderByIdDesc(today)
+                .orElseThrow(() -> new IllegalStateException("当天无记录"));
 
         // 工具类解析
         double cny = XmlExchangeRateUtil.getRate(rate.getRawXml(), "CNY");

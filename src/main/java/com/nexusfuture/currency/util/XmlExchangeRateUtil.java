@@ -15,15 +15,12 @@ public final class XmlExchangeRateUtil {
      * @return 汇率（1欧元 = ? XX货币）
      */
     public static double getRate(String xml, String currency) {
-        // 匹配单引号格式：currency='CNY' rate='7.9495'
-        String regex = "currency='" + currency + "' rate='([0-9.]+)'";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(xml);
-
+        // ECB：双引号 <Cube currency="CNY" rate="7.9495"/>；部分样例为单引号
+        String regex = "currency=['\"]" + Pattern.quote(currency) + "['\"]\\s+rate=['\"]([0-9.]+)['\"]";
+        Matcher matcher = Pattern.compile(regex).matcher(xml);
         if (matcher.find()) {
             return Double.parseDouble(matcher.group(1));
         }
-
         throw new IllegalArgumentException("未找到货币汇率：" + currency);
     }
 }
