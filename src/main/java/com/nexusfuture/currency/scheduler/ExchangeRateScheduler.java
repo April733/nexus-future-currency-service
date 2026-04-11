@@ -16,9 +16,6 @@ import java.time.format.DateTimeFormatter;
 @RequiredArgsConstructor
 public class ExchangeRateScheduler {
 
-    /** 兼容旧引用；实际 URL 以 {@code currency.ecb.url} 为准。 */
-    public static final String ECB_RATE_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
-
     private static final DateTimeFormatter FETCH_TIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 

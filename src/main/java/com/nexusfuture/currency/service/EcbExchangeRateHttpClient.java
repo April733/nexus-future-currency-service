@@ -38,10 +38,8 @@ public class EcbExchangeRateHttpClient {
         return properties.getUrl();
     }
 
-    /**
-     * 同步路径：当前线程一直阻塞到 ECB 返回或超时/重试耗尽。
-     */
-    public String fetchDailyXmlWithRestTemplate() {
+    /** 同步路径：当前线程一直阻塞到 ECB 返回或超时/重试耗尽。 */
+    private String fetchDailyXmlWithRestTemplate() {
         Exception last = null;
         for (int attempt = 1; attempt <= properties.getMaxAttempts(); attempt++) {
             try {
@@ -65,10 +63,10 @@ public class EcbExchangeRateHttpClient {
     }
 
     /**
-     * 异步路径：立即返回 Future；真正 I/O 在 Reactor 线程上执行，可用 thenApply / thenAccept 链式组合。
+     * 异步路径：立即返回 Future；真正 I/O 在 Reactor 线程上执行。
      * 若在 {@link org.springframework.scheduling.annotation.Scheduled} 中需要结果，需 {@code .join()} 或 {@code get()}。
      */
-    public CompletableFuture<String> fetchDailyXmlWithWebClientAsync() {
+    private CompletableFuture<String> fetchDailyXmlWithWebClientAsync() {
         return fetchMono(1).toFuture();
     }
 
