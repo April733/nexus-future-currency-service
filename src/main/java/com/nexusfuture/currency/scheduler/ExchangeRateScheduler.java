@@ -1,44 +1,48 @@
 package com.nexusfuture.currency.scheduler;
 
-import com.nexusfuture.currency.entity.ExchangeRate;
-import com.nexusfuture.currency.repository.ExchangeRateRepository;
-import com.nexusfuture.currency.service.EcbExchangeRateHttpClient;
+import com.nexusfuture.currency.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
-@Slf4j
+/**
+ * 汇率定时任务触发器。
+ * <p>
+ * 这是一个纯粹的调度器，其唯一职责是在指定时间触发核心业务逻辑。
+ * 它不包含任何实际的业务实现，而是委托给 {@link ExchangeRateService} 来执行。
+ * 这种分离使得业务逻辑可以被其他组件（如 API 控制器）轻松复用。
+ */
 @Component
-@RequiredArgsConstructor
 public class ExchangeRateScheduler {
 
-    private static final DateTimeFormatter FETCH_TIME_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    // 手写 log，彻底告别 Lombok 问题！
+    private static final Logger log = LoggerFactory.getLogger(ExchangeRateScheduler.class);
 
-    private final ExchangeRateRepository repository;
-    private final EcbExchangeRateHttpClient ecbHttpClient;
+    private final ExchangeRateService exchangeRateService;
 
-    @Scheduled(cron = "0 0 5 * * ?")
+    public ExchangeRateScheduler(ExchangeRateService exchangeRateService) {
+        this.exchangeRateService = exchangeRateService;
+    }
+
+    /**
+     * 每个工作日（周一至周五）的 17:30 CET 执行。
+     * <p>
+     * 触发 {@link ExchangeRateService#fetchAndPersistLatestRate()} 方法。
+     *
+     * @see <a href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html">ECB Exchange Rates</a>
+     */
+    @Scheduled(cron = "0 30 17 * * MON-FRI", zone = "CET")
     public void fetch() {
+        log.info("开始执行定时任务：触发汇率拉取与持久化...");
         try {
-            String xml = ecbHttpClient.fetchDailyXml();
-            String url = ecbHttpClient.getSourceUrl();
-
-            ExchangeRate rate = new ExchangeRate();
-            LocalDateTime now = LocalDateTime.now();
-            rate.setDate(now.format(FETCH_TIME_FORMAT));
-            rate.setUrl(url);
-            rate.setRawXml(xml);
-            rate.setCreateTime(now);
-
-            repository.save(rate);
-            log.info("汇率保存成功：{}", rate.getDate());
+            exchangeRateService.fetchAndPersistLatestRate();
+            log.info("定时任务成功完成：汇率业务逻辑已执行。");
         } catch (Exception e) {
-            log.error("拉取失败：{}", e.getMessage(), e);
+            // ExchangeRateService 内部已经记录了详细的错误日志。
+            // 这里只记录顶层的任务失败信息，避免日志重复。
+            log.error("汇率拉取定时任务执行失败。", e);
         }
     }
 }

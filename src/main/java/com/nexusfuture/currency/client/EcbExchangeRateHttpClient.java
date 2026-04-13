@@ -1,4 +1,4 @@
-package com.nexusfuture.currency.service;
+package com.nexusfuture.currency.client;
 
 import com.nexusfuture.currency.config.EcbHttpProperties;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +25,12 @@ public class EcbExchangeRateHttpClient {
     private final WebClient ecbWebClient;
 
     /**
-     * 供调度器等调用：按 {@link EcbHttpProperties#getClient()} 选择实现。
+     * 供定时器等调用：按 {@link EcbHttpProperties#getClient()} 选择实现。
      */
     public String fetchDailyXml() {
         return switch (properties.getClient()) {
-            case REST_TEMPLATE -> fetchDailyXmlWithRestTemplate();
-            case WEB_CLIENT_ASYNC -> fetchDailyXmlWithWebClientAsync().join();
+            case REST_TEMPLATE -> fetchDailyXmlSync();
+            case WEB_CLIENT_ASYNC -> fetchDailyXmlAsync().join();
         };
     }
 
@@ -38,8 +38,15 @@ public class EcbExchangeRateHttpClient {
         return properties.getUrl();
     }
 
-    /** 同步路径：当前线程一直阻塞到 ECB 返回或超时/重试耗尽。 */
-    private String fetchDailyXmlWithRestTemplate() {
+    /**
+     * 同步获取 XML 数据。
+     * <p>
+     * 使用 {@link RestTemplate}，当前线程会阻塞直到请求完成或失败。
+     * 内部包含重试逻辑。
+     *
+     * @return 从 ECB 获取的 XML 字符串
+     */
+    private String fetchDailyXmlSync() {
         Exception last = null;
         for (int attempt = 1; attempt <= properties.getMaxAttempts(); attempt++) {
             try {
@@ -55,7 +62,7 @@ public class EcbExchangeRateHttpClient {
                 last = e;
                 log.warn("ECB RestTemplate 第 {} 次失败: {}", attempt, e.getMessage());
                 if (attempt < properties.getMaxAttempts()) {
-                    sleepQuietly();
+                    waitForRetry();
                 }
             }
         }
@@ -63,17 +70,25 @@ public class EcbExchangeRateHttpClient {
     }
 
     /**
-     * 异步路径：立即返回 Future；真正 I/O 在 Reactor 线程上执行。
-     * 若在 {@link org.springframework.scheduling.annotation.Scheduled} 中需要结果，需 {@code .join()} 或 {@code get()}。
+     * 异步获取 XML 数据。
+     * <p>
+     * 使用 {@link WebClient}，立即返回一个 {@link CompletableFuture}，I/O 操作在独立的线程池上执行。
+     *
+     * @return 一个包含 XML 字符串的 CompletableFuture
      */
-    private CompletableFuture<String> fetchDailyXmlWithWebClientAsync() {
-        return fetchMono(1).toFuture();
+    private CompletableFuture<String> fetchDailyXmlAsync() {
+        return fetchWithRetryAsync(1).toFuture();
     }
 
     /**
-     * 失败时按 {@link EcbHttpProperties#getRetryBackoff()} 延迟再试，最多 {@link EcbHttpProperties#getMaxAttempts()} 次。
+     * 使用 WebClient 执行异步获取，并包含完整的重试逻辑。
+     * <p>
+     * 这是一个递归的响应式方法。当请求失败时，它会延迟一段时间后再次调用自身，直到达到最大尝试次数。
+     *
+     * @param attempt 当前的尝试次数
+     * @return 一个包含结果或最终错误的 {@link Mono}
      */
-    private Mono<String> fetchMono(int attempt) {
+    private Mono<String> fetchWithRetryAsync(int attempt) {
         return ecbWebClient.get()
                 .uri(properties.getUrl())
                 .retrieve()
@@ -86,16 +101,19 @@ public class EcbExchangeRateHttpClient {
                                 "ECB WebClient 在 " + properties.getMaxAttempts() + " 次尝试后仍失败", ex));
                     }
                     return Mono.delay(properties.getRetryBackoff())
-                            .then(Mono.defer(() -> fetchMono(attempt + 1)));
+                            .then(Mono.defer(() -> fetchWithRetryAsync(attempt + 1)));
                 });
     }
 
-    private void sleepQuietly() {
+    /**
+     * 在同步重试模式下，使当前线程暂停一段时间。
+     */
+    private void waitForRetry() {
         try {
             Thread.sleep(properties.getRetryBackoff().toMillis());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CompletionException(e);
+            throw new CompletionException("Retry wait was interrupted", e);
         }
     }
 }

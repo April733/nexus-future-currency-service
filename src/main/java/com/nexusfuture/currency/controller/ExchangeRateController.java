@@ -2,74 +2,56 @@ package com.nexusfuture.currency.controller;
 
 import com.nexusfuture.currency.common.Result;
 import com.nexusfuture.currency.entity.ExchangeRate;
-import com.nexusfuture.currency.repository.ExchangeRateRepository;
-import com.nexusfuture.currency.service.ExchangeRateXmlService;
-import com.nexusfuture.currency.util.XmlExchangeRateUtil;
+import com.nexusfuture.currency.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.Map;
-
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/rate")
 public class ExchangeRateController {
 
-    private final ExchangeRateRepository repository;
-    private final ExchangeRateXmlService exchangeRateXmlService;
+    private final ExchangeRateService exchangeRateService;
 
-    @GetMapping("/convert")
-    public Result<?> convert(
-            @RequestParam String date,
-            @RequestParam String from,
-            @RequestParam String to,
-            @RequestParam(defaultValue = "1") double amount
-    ) {
-        ExchangeRate rate = repository.findFirstByDateStartingWithOrderByIdDesc(date)
-                .orElse(null);
-        if (rate == null) {
-            return Result.fail(400, "无当日汇率数据");
-        }
-
-        String xml = rate.getRawXml();
-        double fromRate = XmlExchangeRateUtil.getRate(xml, from);
-        double toRate = XmlExchangeRateUtil.getRate(xml, to);
-        double result = amount * (toRate / fromRate);
-
-        return Result.success(Map.of(
-                "date", rate.getDate(),
-                "from", from,
-                "to", to,
-                "amount", amount,
-                "result", result,
-                "url", rate.getUrl(),
-                "source", "ECB欧洲央行（原始XML）"
-        ));
+    /**
+     * 获取最新的汇率数据。
+     * <p>
+     * 该实现利用了 Optional 的链式调用，代码更简洁、安全。
+     *
+     * @return 包含最新汇率数据的 Result 对象，如果找不到则返回失败的 Result。
+     */
+    @GetMapping("/getLatestRate")
+    public Result<?> getLatestRate() {
+        return exchangeRateService.findLatestRate()
+                .map(xml -> {
+                    log.info("成功获取最新汇率数据，来源：{}", xml);
+                    return Result.success(xml);
+                })
+                .orElse(Result.fail(404, "无法获取到最新的汇率数据"));
     }
 
     /**
-     * 根据已落库的 ECB XML，列出其中出现的货币及对应国家/地区（中英文）。
+     * 手动触发一次汇率数据的拉取和持久化。
+     * <p>
+     * 该接口会调用与定时任务完全相同的业务方法，用于手动更新数据。
      *
-     * @param date 日历日期 yyyy-MM-dd，缺省为当天；用于选取当日最后一次拉取的 XML
+     * @return 表示操作结果的 Result 对象。
      */
-    @GetMapping("/currencies")
-    public Result<?> listCurrencies(
-            @RequestParam(required = false) String date
-    ) {
-        String day = (date == null || date.isBlank()) ? LocalDate.now().toString() : date;
-        ExchangeRate rate = repository.findFirstByDateStartingWithOrderByIdDesc(day)
-                .orElse(null);
-        if (rate == null) {
-            return Result.fail(400, "无当日汇率数据，无法解析 XML");
+    @GetMapping("/refill")
+    public Result<String> refill() {
+        log.info("手动触发汇率数据拉取任务...");
+        try {
+            exchangeRateService.fetchAndPersistLatestRate();
+            log.info("手动触发汇率数据拉取任务成功。");
+            return Result.success("汇率数据拉取和缓存填充任务已成功触发。");
+        } catch (Exception e) {
+            log.error("手动触发汇率数据拉取任务失败。", e);
+            return Result.fail(500, "任务执行失败: " + e.getMessage());
         }
-        return Result.success(Map.of(
-                "date", rate.getDate(),
-                "url", rate.getUrl(),
-                "currencies", exchangeRateXmlService.listCurrencyCountries(rate.getRawXml())
-        ));
     }
+
 }
