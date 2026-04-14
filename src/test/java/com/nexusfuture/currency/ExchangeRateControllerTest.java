@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @Rollback(false) // 🔥 关键：关闭自动回滚！
-
 public class ExchangeRateControllerTest {
 
     @Autowired

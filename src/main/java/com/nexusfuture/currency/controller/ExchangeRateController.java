@@ -1,7 +1,6 @@
 package com.nexusfuture.currency.controller;
 
 import com.nexusfuture.currency.common.Result;
-import com.nexusfuture.currency.entity.ExchangeRate;
 import com.nexusfuture.currency.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
