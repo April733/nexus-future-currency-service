@@ -2,12 +2,16 @@ package com.nexusfuture.currency.dto.ai;
 
 import lombok.Data;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class TongyiRequest {
     private String model;
     private Input input;
+    // 新增并初始化 parameters 字段，以支持流式输出等参数设置
+    private Map<String, Object> parameters = new HashMap<>();
 
     // 该内部类用于构造 "input" 字段
     @Data

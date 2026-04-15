@@ -3,40 +3,56 @@ package com.nexusfuture.currency.controller;
 import com.nexusfuture.currency.client.TongyiQwenClient;
 import com.nexusfuture.currency.common.Result;
 import com.nexusfuture.currency.dto.ai.AiChatRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/ai")
 public class AiController {
-
     private final TongyiQwenClient tongyiQwenClient;
 
+    // 使用一个单线程的线程池来处理SSE的异步任务，避免阻塞主线程
+    private final ExecutorService sseExecutor = Executors.newSingleThreadExecutor();
+
+    public AiController(TongyiQwenClient tongyiQwenClient) {
+        this.tongyiQwenClient = tongyiQwenClient;
+    }
+
     /**
-     * AI 聊天接口。
-     *
-     * @param request 包含用户 prompt 的请求体。
-     * @return 包含AI生成文本的 Result 对象。
+     * 【保留的非流式聊天接口】
+     * 接收一个包含 prompt 的 JSON 对象，并一次性返回完整的 AI 回复。
      */
-    @PostMapping("/chat")
-    public Result<String> chat(@RequestBody AiChatRequest request) {
-        if (request == null || request.getPrompt() == null || request.getPrompt().isBlank()) {
+    @GetMapping("/chat")
+    public Result<String> chat(@RequestParam String prompt) {
+        if (!StringUtils.hasText(prompt)) {
             return Result.fail(400, "Prompt不能为空。");
         }
 
         try {
-            String completion = tongyiQwenClient.getChatCompletion(request.getPrompt());
-            return Result.success(completion);
+            String aiResponse = tongyiQwenClient.getChatCompletion(prompt);
+            return Result.success(aiResponse);
         } catch (Exception e) {
-            log.error("AI chat failed: {}", e.getMessage());
-            // 返回一个对用户友好的错误信息
+            log.error("调用AI服务时发生错误: {}", e.getMessage(), e);
             return Result.fail(500, "调用AI服务时发生内部错误。");
         }
+    }
+
+
+    @GetMapping(value = "/chat-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> chatStream(@RequestParam String prompt) {
+        return tongyiQwenClient.getChatCompletionStream(prompt);
     }
 }
