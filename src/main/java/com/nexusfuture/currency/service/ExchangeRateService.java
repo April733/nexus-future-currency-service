@@ -5,6 +5,7 @@ import com.nexusfuture.currency.config.RedisProperties;
 import com.nexusfuture.currency.constant.RedisKeyConstant;
 import com.nexusfuture.currency.entity.ExchangeRate;
 import com.nexusfuture.currency.repository.ExchangeRateRepository;
+import com.nexusfuture.currency.util.CurrencyXmlParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -60,7 +61,8 @@ public class ExchangeRateService {
                     log.info("旧缓存 {} 已删除",RedisKeyConstant.CURRENCY_ECB);
 
                     // 3.2. 写入缓存
-                    cache.set(RedisKeyConstant.CURRENCY_ECB, xml, RedisKeyConstant.TTL);
+                    cache.set(RedisKeyConstant.CURRENCY_ECB, CurrencyXmlParser.parseToCurrencyRateList(xml), RedisKeyConstant.TTL);
+
                     log.info("Redis 已写入当日缓存 {}，XML={}，TTL={}", RedisKeyConstant.CURRENCY_ECB, xml, RedisKeyConstant.TTL);
 
                 });
@@ -103,7 +105,7 @@ public class ExchangeRateService {
         // 3. 回填缓存
         if (cache != null && redisProperties != null) {
             try {
-                cache.set(RedisKeyConstant.CURRENCY_ECB, rawXml, RedisKeyConstant.TTL);
+                cache.set(RedisKeyConstant.CURRENCY_ECB, CurrencyXmlParser.parseToCurrencyRateList(rawXml), RedisKeyConstant.TTL);
                 log.info("已自动回填 Redis 缓存");
             } catch (Exception e) {
                 log.error("回填缓存失败", e);
