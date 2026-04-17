@@ -11,7 +11,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,7 +23,6 @@ import java.util.Map;
 @Service
 public class TongyiQwenClient {
 
-    private final RestTemplate restTemplate;
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
     private final ToolRegistry toolRegistry; // 新增：注入ToolRegistry
@@ -34,14 +32,19 @@ public class TongyiQwenClient {
     @Value("${ai.tongyi.api-key}")
     private String apiKey;
 
+    @Value("${ai.tongyi.model}")
+    private String model;
+
     @Value("${ai.tongyi.url}")
     private String apiUrl;
 
     @Value("${ai.tongyi.stream-url:}")
     private String streamApiUrl;
 
-    public TongyiQwenClient(RestTemplate restTemplate, WebClient.Builder webClientBuilder, ObjectMapper objectMapper, ToolRegistry toolRegistry) {
-        this.restTemplate = restTemplate;
+    @Value("${ai.tongyi.openai-url:}")
+    private String openaiApiUrl;
+
+    public TongyiQwenClient(WebClient.Builder webClientBuilder, ObjectMapper objectMapper, ToolRegistry toolRegistry) {
         this.webClientBuilder = webClientBuilder;
         this.objectMapper = objectMapper;
         this.toolRegistry = toolRegistry; // 新增：注入ToolRegistry
@@ -58,43 +61,15 @@ public class TongyiQwenClient {
         this.webClient = webClientBuilder.baseUrl(urlForStreaming).build();
     }
 
-    //    /**
-//     * 【非流式方法】
-//     */
-//    public String getChatCompletion(String prompt) {
-//        log.info("正在为 prompt 调用通义千问 API: '{}'", prompt);
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//        headers.set("Authorization", "Bearer " + apiKey);
-//
-//        TongyiRequest requestPayload = TongyiRequest.createWithPrompt(prompt);
-//        HttpEntity<TongyiRequest> requestEntity = new HttpEntity<>(requestPayload, headers);
-//
-//        try {
-//            TongyiResponse response = restTemplate.postForObject(apiUrl, requestEntity, TongyiResponse.class);
-//
-//            if (response != null && response.getOutput() != null && response.getOutput().getText() != null) {
-//                log.info("成功从通义千问获取到回复。");
-//                return response.getOutput().getText();
-//            } else {
-//                log.warn("通义千问返回了空的响应或文本。");
-//                return "抱歉，AI未能生成有效的回复。";
-//            }
-//        } catch (Exception e) {
-//            log.error("调用通义千问API时发生错误: {}", e.getMessage(), e);
-//            throw new RuntimeException("调用AI服务失败，请检查配置或网络连接。", e);
-//        }
-//    }
-// 非流式，拿到完整回答
+    // 非流式，拿到完整回答
     public String getChatCompletion(String prompt) {
         Map<String, Object> param = Map.of(
-                "model", "qwen3.5-flash",
+                "model", model,
                 "messages", List.of(Map.of("role", "user", "content", prompt))
         );
 
         String result = webClient.post()
-                .uri("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
+                .uri(openaiApiUrl)
                 .header("Authorization", "Bearer " + apiKey)
                 .bodyValue(param)
                 .retrieve()
@@ -112,7 +87,7 @@ public class TongyiQwenClient {
         log.info("正在为 prompt 调用通义千问流式 API: '{}'", prompt);
 
         var body = Map.of(
-                "model", "qwen3.5-flash",
+                "model", model,
                 "messages", List.of(Map.of("role", "user", "content", prompt)),
                 "stream", true
         );
@@ -179,14 +154,14 @@ public class TongyiQwenClient {
 
             // 构造请求体
             Map<String, Object> requestBody = Map.of(
-                    "model", "qwen3.5-flash", // 修正：使用项目中已验证过的模型
+                    "model", model, // 修正：使用项目中已验证过的模型
                     "messages", messages,
                     "tools", toolRegistry.getAllToolsForApi()
             );
 
             // 发起请求并同步等待结果
             String resultJson = webClient.post()
-                    .uri("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
+                    .uri(openaiApiUrl)
                     .header("Authorization", "Bearer " + apiKey)
                     .bodyValue(requestBody)
                     .retrieve()
@@ -209,7 +184,8 @@ public class TongyiQwenClient {
                 JsonNode messageNode = response.at("/choices/0/message");
 
                 // 将AI的回复加入对话历史
-                messages.add(objectMapper.convertValue(messageNode, new TypeReference<Map<String, Object>>() {}));
+                messages.add(objectMapper.convertValue(messageNode, new TypeReference<Map<String, Object>>() {
+                }));
 
                 // 检查是否需要调用工具
                 if (messageNode.has("tool_calls")) {

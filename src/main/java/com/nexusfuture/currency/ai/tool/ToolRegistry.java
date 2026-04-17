@@ -58,10 +58,12 @@ public class ToolRegistry {
         try {
             // 决定性修正：使用readValue来解析一个包含JSON的字符串
             Map<String, Object> arguments = objectMapper.readValue(argumentsJson, new TypeReference<>() {});
+            log.info("Tool '{}' executed successfully with arguments: {}", name, argumentsJson);
             return tool.execute(arguments);
         } catch (Exception e) {
             log.error("Failed to parse/execute tool '{}' with arguments {}: {}", name, argumentsJson, e.getMessage(), e);
             return "{\"error\": \"Failed to execute tool " + name + ": " + e.getMessage() + "\"}";
         }
+
     }
 }

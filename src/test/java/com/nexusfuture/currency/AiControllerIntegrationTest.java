@@ -15,7 +15,7 @@ public class AiControllerIntegrationTest {
     @Autowired
     private WebTestClient webTestClient;
 
-    // ❌ 你原来的流式测试（保留不动）
+    // 流式测试（保留不动）
     @Test
     void testChatStream() {
         webTestClient.get().uri("/api/ai/chat-stream?prompt=对比吉隆坡和曼谷的天气？")
@@ -64,6 +64,10 @@ public class AiControllerIntegrationTest {
     void testChatWithTools_GetExchangeRate() {
         String prompt = "今天的人民币换泰铢汇率是多少？";
 
+//        String prompt = "你好，请帮我查询一下最新的汇率，特别是人民币和美元泰铢。";
+
+//       String prompt = "今天甲米的天气怎么样？";
+//        String prompt = "给我讲个笑话";
         // 调用新增的带工具的聊天接口
         webTestClient.get().uri(uriBuilder -> uriBuilder
                         .path("/api/ai/chat-with-tools")
