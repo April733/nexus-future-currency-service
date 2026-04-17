@@ -58,7 +58,7 @@ public class ExchangeRateService {
 
                     // 3.1. 先删除所有旧的汇率缓存
                     cache.deleteByPrefix(RedisKeyConstant.CURRENCY_ECB);
-                    log.info("旧缓存 {} 已删除",RedisKeyConstant.CURRENCY_ECB);
+                    log.info("旧缓存 {} 已删除", RedisKeyConstant.CURRENCY_ECB);
 
                     // 3.2. 写入缓存
                     cache.set(RedisKeyConstant.CURRENCY_ECB, CurrencyXmlParser.parseToCurrencyRateList(xml), RedisKeyConstant.TTL);
@@ -87,7 +87,8 @@ public class ExchangeRateService {
         if (cache != null && redisProperties != null) {
             Optional<String> xmlOpt = cache.get(RedisKeyConstant.CURRENCY_ECB, String.class);
             if (xmlOpt.isPresent()) {
-                log.info("缓存命中，返回 XML");
+                log.info("缓存命中，返回 XML {}", xmlOpt.get());
+                log.info("xmlOpt，XML={}", xmlOpt);
                 return xmlOpt;
             }
         }
@@ -100,19 +101,19 @@ public class ExchangeRateService {
         }
 
         ExchangeRate rate = dbOpt.get();
-        String rawXml = rate.getRawXml();
+        String raw = CurrencyXmlParser.parseToCurrencyRateList(rate.getRawXml());
 
         // 3. 回填缓存
         if (cache != null && redisProperties != null) {
             try {
-                cache.set(RedisKeyConstant.CURRENCY_ECB, CurrencyXmlParser.parseToCurrencyRateList(rawXml), RedisKeyConstant.TTL);
-                log.info("已自动回填 Redis 缓存");
+                cache.set(RedisKeyConstant.CURRENCY_ECB, raw, RedisKeyConstant.TTL);
+                log.info("已自动回填 Redis 缓存，XML={}", raw);
+
             } catch (Exception e) {
                 log.error("回填缓存失败", e);
             }
         }
-
-        return Optional.ofNullable(rawXml);
+        return Optional.of(raw);
     }
 
 }
