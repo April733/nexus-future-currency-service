@@ -55,4 +55,34 @@ public class AiControllerIntegrationTest {
         assertThat(fullAnswer).isNotBlank();
         assertThat(fullAnswer).contains("吉隆坡", "曼谷", "天气");
     }
+
+
+    // =====================================================================
+    // ✅【新增】Function Calling 功能测试
+    // =====================================================================
+    @Test
+    void testChatWithTools_GetExchangeRate() {
+        String prompt = "今天的人民币换泰铢汇率是多少？";
+
+        // 调用新增的带工具的聊天接口
+        webTestClient.get().uri(uriBuilder -> uriBuilder
+                        .path("/api/ai/chat-with-tools")
+                        .queryParam("prompt", prompt)
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo(200)
+                .jsonPath("$.msg").isEqualTo("success")
+                .jsonPath("$.data").value(data -> {
+                    String responseData = (String) data;
+                    System.out.println("\n===== 【Function Call 完整返回结果】 =====");
+                    System.out.println(responseData);
+                    System.out.println("========================================\n");
+
+                    // 断言结果非空，并且包含了工具调用后应该有的关键词
+                    assertThat(responseData).isNotBlank();
+                    assertThat(responseData).containsAnyOf("人民币", "CNY", "美元", "USD", "汇率");
+                });
+    }
 }

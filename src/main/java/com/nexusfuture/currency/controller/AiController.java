@@ -55,4 +55,26 @@ public class AiController {
     public Flux<String> chatStream(@RequestParam String prompt) {
         return tongyiQwenClient.getChatCompletionStream(prompt);
     }
+
+    /**
+     * 【新增的Function Calling接口】
+     * 接收一个 prompt，并允许AI在处理过程中调用已注册的工具（如查询汇率）。
+     *
+     * @param prompt 用户的请求，例如 "查询一下人民币和美元的汇率"
+     * @return 包含AI最终答复的Result对象
+     */
+    @GetMapping("/chat-with-tools")
+    public Result<String> chatWithTools(@RequestParam String prompt) {
+        if (!StringUtils.hasText(prompt)) {
+            return Result.fail(400, "Prompt不能为空。");
+        }
+
+        try {
+            String aiResponse = tongyiQwenClient.getChatCompletionWithTools(prompt);
+            return Result.success(aiResponse);
+        } catch (Exception e) {
+            log.error("调用带工具的AI服务时发生错误: {}", e.getMessage(), e);
+            return Result.fail(500, "调用带工具的AI服务时发生内部错误。");
+        }
+    }
 }
