@@ -1,4 +1,4 @@
-package com.nexusfuture.currency.ai.tool;
+package com.nexusfuture.currency.ai.functioncall;
 
 import java.util.Map;
 

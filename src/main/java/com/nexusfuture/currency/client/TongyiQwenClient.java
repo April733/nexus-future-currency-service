@@ -1,12 +1,13 @@
 package com.nexusfuture.currency.client;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nexusfuture.currency.ai.tool.ToolRegistry;
+import com.nexusfuture.currency.ai.functioncall.ToolRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,9 +26,10 @@ public class TongyiQwenClient {
 
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
-    private final ToolRegistry toolRegistry; // 新增：注入ToolRegistry
+    private final ToolRegistry toolRegistry;
 
     private WebClient webClient;
+    private WebClient embeddingWebClient;
 
     @Value("${ai.tongyi.api-key}")
     private String apiKey;
@@ -43,22 +45,33 @@ public class TongyiQwenClient {
 
     @Value("${ai.tongyi.openai-url:}")
     private String openaiApiUrl;
+    
+    // 新增：Embedding API 地址
+    @Value("${ai.tongyi.embedding-url}")
+    private String embeddingUrl;
+
+    @Value("${ai.tongyi.embedding.model}")
+    private String embeddingModel;
 
     public TongyiQwenClient(WebClient.Builder webClientBuilder, ObjectMapper objectMapper, ToolRegistry toolRegistry) {
         this.webClientBuilder = webClientBuilder;
         this.objectMapper = objectMapper;
-        this.toolRegistry = toolRegistry; // 新增：注入ToolRegistry
+        this.toolRegistry = toolRegistry;
     }
 
     @PostConstruct
     public void init() {
         String urlForStreaming = streamApiUrl;
         if (urlForStreaming == null || urlForStreaming.trim().isEmpty()) {
-            log.warn("Configuration 'ai.tongyi.stream-url' not found. Falling back to 'ai.tongyi.url' for streaming. This may not work as expected if endpoints differ.");
             urlForStreaming = apiUrl;
         }
-        log.info("Initializing WebClient for streaming with base URL: {}", urlForStreaming);
         this.webClient = webClientBuilder.baseUrl(urlForStreaming).build();
+        
+        // 限制 Embedding 接口的最大内存缓冲区为 10MB，防止超大响应撑爆内存
+        this.embeddingWebClient = webClientBuilder
+                .baseUrl(embeddingUrl)
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
+                .build();
     }
 
     // 非流式，拿到完整回答
@@ -224,5 +237,76 @@ public class TongyiQwenClient {
 
         log.warn("【Function Call】对话超过最大轮次，未能获得最终答案。");
         return "抱歉，经过多轮工具调用后，仍无法得出最终结论。";
+    }
+
+    /**
+     * 新增：获取文本向量 (Embedding)
+     */
+    public List<Float> getEmbedding(String text) {
+        Map<String, Object> body = Map.of(
+                "model", embeddingModel,
+                "input", List.of(text)
+        );
+
+        String resultJson = embeddingWebClient.post()
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        // 使用 Fastjson2 解析响应
+        JSONObject json = JSON.parseObject(resultJson);
+        JSONArray embeddings = json.getJSONObject("output").getJSONArray("embeddings");
+        
+        // 提取第一个向量
+        JSONArray values = embeddings.getJSONObject(0).getJSONArray("embedding");
+        List<Float> embeddingList = new ArrayList<>();
+        for (int i = 0; i < values.size(); i++) {
+            embeddingList.add(values.getFloat(i));
+        }
+        
+        return embeddingList;
+    }
+
+    /**
+     * 批量获取 embeddings（支持动态维度压缩）
+     */
+    public List<float[]> getBatchEmbeddings(List<String> texts) {
+        if (texts == null || texts.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 【关键优化】指定 dimensions 为 1536，实现无损降维并兼容 HNSW 索引
+        Map<String, Object> body = Map.of(
+                "model", "tongyi-embedding-vision-plus-2026-03-06",
+                "input", texts,
+                "dimensions", 1536 
+        );
+
+        String resultJson = embeddingWebClient.post()
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        JSONObject json = JSON.parseObject(resultJson);
+        JSONArray embeddings = json.getJSONObject("output").getJSONArray("embeddings");
+        
+        List<float[]> allEmbeddings = new ArrayList<>(embeddings.size());
+        for (int i = 0; i < embeddings.size(); i++) {
+            JSONArray values = embeddings.getJSONObject(i).getJSONArray("embedding");
+            // 此时 values.size() 将是 1536
+            float[] embeddingArray = new float[values.size()];
+            for (int j = 0; j < values.size(); j++) {
+                embeddingArray[j] = values.getFloat(j);
+            }
+            allEmbeddings.add(embeddingArray);
+        }
+        
+        return allEmbeddings;
     }
 }

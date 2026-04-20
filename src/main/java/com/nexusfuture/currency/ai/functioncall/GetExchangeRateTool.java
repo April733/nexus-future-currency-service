@@ -1,4 +1,4 @@
-package com.nexusfuture.currency.ai.tool;
+package com.nexusfuture.currency.ai.functioncall;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,9 +1,7 @@
 package com.nexusfuture.currency.dto.openai;
 
-import com.nexusfuture.currency.ai.tool.ExecutableTool;
+import com.nexusfuture.currency.ai.functioncall.ExecutableTool;
 import lombok.Data;
-
-import java.util.Map;
 
 @Data
 public class Tool {
