@@ -1,4 +1,4 @@
-package com.nexusfuture.currency.ai.rag.controller;
+package com.nexusfuture.currency.ai.controller;
 
 import com.nexusfuture.currency.ai.rag.service.RagService;
 import com.nexusfuture.currency.common.Result;
