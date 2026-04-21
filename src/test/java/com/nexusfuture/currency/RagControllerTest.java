@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @Slf4j
-@SpringBootTest // 🔥 启动完整的 Spring Boot 容器，加载所有真实的 Bean
+@SpringBootTest // 🔥 启动完整容器，加载所有真实 Bean (Python Client, LLM Client 等)
 @AutoConfigureMockMvc
 class RagControllerTest {
 
@@ -21,14 +21,14 @@ class RagControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    @DisplayName("🔥 真实链路测试: 调用 Python 检索并返回结果")
+    @DisplayName("🔥 真实链路: 基础版 RAG 问答")
     void testRealRagAsk() throws Exception {
         log.info("--------------------------------------------------");
-        log.info("🚀 开始执行【真实】集成测试");
-        log.info("⚠️ 注意：请确保 Python 服务 (localhost:8000) 已启动！");
+        log.info("🚀 开始执行【真实】集成测试 - Ask Basic");
+        log.info("⚠️ 请确保 Python 服务 (localhost:8000) 已启动！");
         log.info("--------------------------------------------------");
 
-        String question = "个人外汇额度是多少？";
+        String question = "个人在印度尼西亚的外汇额度是多少？";
         log.info("📤 发送真实请求, 入参: {}", question);
 
         mockMvc.perform(post("/api/rag/ask")
@@ -42,7 +42,30 @@ class RagControllerTest {
     }
 
     @Test
-    @DisplayName("❌ 真实链路测试: 空参数校验")
+    @DisplayName("🔥 真实链路: 增强版 RAG 问答 (带溯源)")
+    void testRealRagAskPlus() throws Exception {
+        log.info("--------------------------------------------------");
+        log.info("🚀 开始执行【真实】集成测试 - Ask Plus");
+        
+        String question = "个人在印度尼西亚的外汇额度是多少？";
+        log.info("📤 发送真实请求, 入参: {}", question);
+
+        mockMvc.perform(post("/api/rag/ask-plus")
+                        .param("question", question))
+                .andDo(print()) // 🔥 打印包含 citations 的真实 JSON
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                // 验证返回的是结构化对象
+                .andExpect(jsonPath("$.data.answer").exists())
+                // 验证包含 citations 数组
+                .andExpect(jsonPath("$.data.citations").isArray());
+        
+        log.info("✅ 增强版真实链路测试通过！");
+        log.info("--------------------------------------------------");
+    }
+
+    @Test
+    @DisplayName("❌ 真实链路: 空参数校验")
     void testRealRagEmptyParam() throws Exception {
         log.info("📤 发送真实请求, 入参: [空字符串]");
         

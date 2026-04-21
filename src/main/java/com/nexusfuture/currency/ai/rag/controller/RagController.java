@@ -2,6 +2,7 @@ package com.nexusfuture.currency.ai.rag.controller;
 
 import com.nexusfuture.currency.ai.rag.service.RagService;
 import com.nexusfuture.currency.common.Result;
+import com.nexusfuture.currency.dto.ai.RagAnswerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,24 @@ public class RagController {
         } catch (Exception e) {
             log.error("❌ [API 异常] RAG 问答失败: {}", e.getMessage(), e);
             log.info("--------------------------------------------------");
+            return Result.fail(500, "服务繁忙，请稍后再试");
+        }
+    }
+
+    /**
+     * 【增量接口】带引用溯源的 RAG 问答
+     */
+    @PostMapping("/ask-plus")
+    public Result<RagAnswerDto> askQuestionPlus(@RequestParam String question) {
+        if (question == null || question.trim().isEmpty()) {
+            return Result.fail(400, "问题不能为空");
+        }
+        
+        try {
+            RagAnswerDto answerDto = ragService.answerWithCitations(question);
+            return Result.success(answerDto);
+        } catch (Exception e) {
+            log.error("RAG 增强问答失败: {}", e.getMessage(), e);
             return Result.fail(500, "服务繁忙，请稍后再试");
         }
     }
