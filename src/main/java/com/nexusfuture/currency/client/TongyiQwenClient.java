@@ -76,21 +76,41 @@ public class TongyiQwenClient {
 
     // 非流式，拿到完整回答
     public String getChatCompletion(String prompt) {
-        Map<String, Object> param = Map.of(
-                "model", model,
-                "messages", List.of(Map.of("role", "user", "content", prompt))
-        );
+        try {
+            Map<String, Object> param = Map.of(
+                    "model", model,
+                    "messages", List.of(Map.of("role", "user", "content", prompt))
+            );
 
-        String result = webClient.post()
-                .uri(openaiApiUrl)
-                .header("Authorization", "Bearer " + apiKey)
-                .bodyValue(param)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+            String responseJson = webClient.post()
+                    .uri(openaiApiUrl)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .bodyValue(param)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
 
-        System.out.println("完整AI结果：" + result);
-        return result;
+            // 🔥 核心修改：从复杂的 JSON 中提取 content
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode choices = root.get("choices");
+            
+            if (choices != null && choices.isArray() && choices.size() > 0) {
+                JsonNode message = choices.get(0).get("message");
+                if (message != null) {
+                    // 优先取 content，如果没有再取 reasoning_content (如果有的话)
+                    String content = message.has("content") ? message.get("content").asText() : "";
+                    log.info("🤖 [LLM] 提取到的最终回答: {}", content);
+                    return content;
+                }
+            }
+            
+            log.warn("⚠️ [LLM] 无法从响应中提取 content，返回原始 JSON");
+            return responseJson; // 兜底策略
+            
+        } catch (Exception e) {
+            log.error("❌ [LLM] 调用或解析失败", e);
+            throw new RuntimeException("LLM 服务异常", e);
+        }
     }
 
     /**
