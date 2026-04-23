@@ -15,7 +15,7 @@ import java.time.Duration;
 public class EcbHttpProperties {
 
     /** ECB eurofxref-daily.xml */
-    private String url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
+    private String url;
 
     /** TCP 连接超时 */
     private Duration connectTimeout = Duration.ofSeconds(10);
@@ -30,12 +30,14 @@ public class EcbHttpProperties {
     private Duration retryBackoff = Duration.ofMillis(500);
 
     /**
-     * REST_TEMPLATE：同步阻塞，Servlet 栈常用。<br>
-     * WEB_CLIENT_ASYNC：Reactor Netty 上发请求，对外返回 CompletableFuture（定时任务里仍会 join 等待完成）。
+     * 客户端类型：rest_template 或 web_client_async
      */
-    private ClientMode client = ClientMode.REST_TEMPLATE;
+    private ClientType client = ClientType.REST_TEMPLATE;
 
-    public enum ClientMode {
+    /** ECB SDMX API 基础地址模板 (用于按日期范围查询，%s 为货币代码占位符) */
+    private String smdxUrlTemplate;
+
+    public enum ClientType {
         REST_TEMPLATE,
         WEB_CLIENT_ASYNC
     }

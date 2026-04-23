@@ -46,4 +46,48 @@ public class ExchangeRateControllerTest {
         assertNotNull(result);
         assertEquals(200, result.getCode());
     }
+
+
+    @Test
+    void fetchRateByRange() {
+        System.out.println("fetchRateByRange-test begin:::");
+
+        // 1. 定义测试参数
+        String currency = "USD";
+        String startDate = "2026-01-01";
+        String endDate = "2026-01-31";
+
+        // 2. 调用新增的按日期范围拉取接口
+        Result<String> result = controller.fetchRateByRange(currency, startDate, endDate);
+
+        // 3. 打印完整数据
+        System.out.println("接口返回数据：" + JSON.toJSONString(result));
+
+        // 4. 断言不为空且执行成功
+        assertNotNull(result);
+        assertEquals(200, result.getCode());
+        System.out.println("fetchRateByRange-test end:::");
+    }
+
+    @Test
+    void getHistoryRates() {
+        System.out.println("getHistoryRates-test begin:::");
+
+        // 1. 定义测试参数 (与 fetchRateByRange 保持一致)
+        String currency = "USD";
+        String startDate = "2026-01-01";
+        String endDate = "2026-01-31";
+
+        // 2. 调用历史汇率查询接口
+        Result<?> result = controller.getHistory(currency, startDate, endDate);
+
+        // 3. 打印完整数据
+        System.out.println("历史汇率查询返回数据：" + JSON.toJSONString(result));
+
+        // 4. 断言不为空且执行成功
+        assertNotNull(result);
+        assertEquals(200, result.getCode());
+        assertNotNull(result.getData());
+        System.out.println("getHistoryRates-test end:::");
+    }
 }

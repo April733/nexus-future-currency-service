@@ -12,12 +12,12 @@ public class ExchangeRate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 512)
+    @Column(name = "url", length = 512)
     private String url;           // 保存请求的URL
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(name = "raw_xml", columnDefinition = "LONGTEXT")
     private String rawXml;        // 原始XML
 
+    @Column(name = "create_time", length = 255)
     private String createTime;
-
 }

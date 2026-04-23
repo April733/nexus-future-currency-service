@@ -2,10 +2,10 @@ package com.nexusfuture.currency;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing; // 导入注解
 
 @SpringBootApplication
-@EnableScheduling
+@EnableJpaAuditing // 开启 JPA 审计功能，自动处理创建时间和修改时间
 public class ExchangeServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(ExchangeServiceApplication.class, args);

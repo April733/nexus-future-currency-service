@@ -8,6 +8,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -36,6 +38,46 @@ public class EcbExchangeRateHttpClient {
 
     public String getSourceUrl() {
         return properties.getUrl();
+    }
+
+    /**
+     * 根据指定日期范围和货币获取 JSON 数据 (增量功能)
+     * @param currency 货币代码 (e.g., "USD", "CNY", "JPY")
+     * @param startDate 开始日期 (e.g., "2026-01-01")
+     * @param endDate 结束日期 (e.g., "2026-05-31")
+     */
+    public String fetchXmlByDateRange(String currency, String startDate, String endDate) {
+        // 🔥 动态拼接货币代码
+        String urlWithParams = String.format(
+            "%s?startPeriod=%s&endPeriod=%s",
+            String.format(properties.getSmdxUrlTemplate(), currency), startDate, endDate
+        );
+        
+        log.info("🚀 [ECB Client] 准备拉取汇率 - 货币: {}, 入参: startDate={}, endDate={}", currency, startDate, endDate);
+        log.info("🔗 [ECB Client] 完整请求 URL: {}", urlWithParams);
+
+        Exception last = null;
+        for (int attempt = 1; attempt <= properties.getMaxAttempts(); attempt++) {
+            try {
+                String jsonData = restTemplate.getForObject(urlWithParams, String.class);
+                
+                if (jsonData == null || jsonData.isBlank()) {
+                    throw new IllegalStateException("Empty response body from SDMX API");
+                }
+                
+                // 🔥 修改：打印完整的返回数据，方便调试解析逻辑
+                log.info("✅ [ECB Client] 请求成功 - 完整返回数据: \n{}", jsonData);
+                
+                return jsonData; 
+            } catch (Exception e) {
+                last = e;
+                log.warn("⚠️ [ECB Client] 第 {} 次尝试失败: {}", attempt, e.getMessage());
+                if (attempt < properties.getMaxAttempts()) {
+                    waitForRetry();
+                }
+            }
+        }
+        throw new RuntimeException("拉取指定日期范围汇率失败", last);
     }
 
     /**
