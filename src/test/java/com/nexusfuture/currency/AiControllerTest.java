@@ -18,7 +18,7 @@ public class AiControllerTest {
     // 流式测试（保留不动）
     @Test
     void testChatStream() {
-        webTestClient.get().uri("/api/ai/chat-stream?prompt=对比吉隆坡和曼谷的天气？")
+        webTestClient.get().uri("/api/ai/chat-stream?prompt=对比甲米镇和雅加达的天气？")
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .exchange()
                 .expectStatus().isOk()
@@ -38,7 +38,7 @@ public class AiControllerTest {
     void testChat_Normal_Backend_Interface() {
         // 后端接口 → 返回完整文本，不是流
         String fullAnswer = webTestClient.get()
-                .uri("/api/ai/chat?prompt=对比吉隆坡和曼谷的天气？")
+                .uri("/api/ai/chat?prompt=对于哈尔滨和雅加达的天气？")
                 .exchange()
                 .expectStatus().isOk()
                 .returnResult(String.class)
@@ -53,7 +53,7 @@ public class AiControllerTest {
 
         // 断言一定不为空（100% 成功）
         assertThat(fullAnswer).isNotBlank();
-        assertThat(fullAnswer).contains("吉隆坡", "曼谷", "天气");
+        assertThat(fullAnswer).contains("哈尔滨", "雅加达", "天气");
     }
 
 
