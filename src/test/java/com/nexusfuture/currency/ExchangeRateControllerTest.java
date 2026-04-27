@@ -52,10 +52,10 @@ public class ExchangeRateControllerTest {
     void fetchRateByRange() {
         System.out.println("fetchRateByRange-test begin:::");
 
-        // 1. 定义测试参数
-        String currency = "USD";
-        String startDate = "2026-01-01";
-        String endDate = "2026-01-31";
+        // 1. 定义测试参数：印尼盾（IDR），最近一个月
+        String currency = "IDR";
+        String startDate = "2026-03-27";
+        String endDate = "2026-04-27";
 
         // 2. 调用新增的按日期范围拉取接口
         Result<String> result = controller.fetchRateByRange(currency, startDate, endDate);
@@ -73,10 +73,10 @@ public class ExchangeRateControllerTest {
     void getHistoryRates() {
         System.out.println("getHistoryRates-test begin:::");
 
-        // 1. 定义测试参数 (与 fetchRateByRange 保持一致)
-        String currency = "USD";
-        String startDate = "2026-01-01";
-        String endDate = "2026-01-31";
+        // 1. 定义测试参数：印尼盾（IDR），最近一个月
+        String currency = "IDR";
+        String startDate = "2026-03-27";
+        String endDate = "2026-04-27";
 
         // 2. 调用历史汇率查询接口
         Result<?> result = controller.getHistory(currency, startDate, endDate);

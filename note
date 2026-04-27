@@ -18,3 +18,8 @@ cd /Users/april/Desktop/cursor-project/nexus-future-currency-service
 ./mvnw test
 所有 System.out 和 log.info 都会出现在这个终端窗口里，往上翻就能看到。
 
+当前连接数据库架构
+Java Code (JPA/Hibernate) → HikariCP (连接池) → mysql-connector-j (驱动) → MySQL 8.0 Server
+
+ -- 在远程 MySQL 执行
+docker exec -i mysql-container mysql -uroot -p -Bse "SELECT user, host FROM mysql.user WHERE user='root';"
