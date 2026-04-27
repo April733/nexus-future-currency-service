@@ -1,14 +1,24 @@
 # 使用官方的 Eclipse Temurin Java 21 运行时（轻量且兼容性好）
 FROM eclipse-temurin:21-jre-alpine
 
+# 设置时区为上海（解决日志时间差 8 小时的问题）
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
 # 设置工作目录
 WORKDIR /app
 
-# 复制打包好的 JAR 文件（需要在宿主机先执行 mvn package）
+# 复制打包好的 JAR 文件
 COPY target/currency-service-0.0.1-SNAPSHOT.jar app.jar
 
-# 暴露端口（默认 8080）
+# 暴露端口
 EXPOSE 8080
 
-# 启动命令（改为读取 application.properties，不再硬编码数据库连接）
-ENTRYPOINT ["java", "-jar", "app.jar", "--server.port=8080"]
+# 启动命令：增加 JVM 内存限制和时区参数
+ENTRYPOINT ["java", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-Duser.timezone=Asia/Shanghai", \
+    "-Xms512m", "-Xmx512m", \
+    "-jar", "app.jar", \
+    "--server.port=8080"]
