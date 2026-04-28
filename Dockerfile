@@ -12,13 +12,17 @@ WORKDIR /app
 # 复制打包好的 JAR 文件
 COPY target/currency-service-0.0.1-SNAPSHOT.jar app.jar
 
+# 🔥 新增：将远程配置文件也复制进镜像
+COPY src/main/resources/application.properties /app/application.properties
+
 # 暴露端口
 EXPOSE 8080
 
-# 启动命令：增加 JVM 内存限制和时区参数
+# 启动命令：显式指定加载外部配置文件
 ENTRYPOINT ["java", \
     "-Djava.security.egd=file:/dev/./urandom", \
     "-Duser.timezone=Asia/Shanghai", \
     "-Xms512m", "-Xmx512m", \
     "-jar", "app.jar", \
+    "--spring.config.location=file:/app/application.properties", \
     "--server.port=8080"]
