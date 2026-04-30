@@ -23,3 +23,30 @@ Java Code (JPA/Hibernate) → HikariCP (连接池) → mysql-connector-j (驱动
 
  -- 在远程 MySQL 执行
 docker exec -i mysql-container mysql -uroot -p -Bse "SELECT user, host FROM mysql.user WHERE user='root';"
+
+
+【部署docker至远程服务】
+# 1. 构建服务器能用的镜像（指定 x86 架构）
+❌
+docker buildx build --platform linux/amd64 -t currency-service:latest --load .
+
+✅
+TAG=currency-service:$(date +%Y%m%d-%H)
+docker buildx build --platform linux/amd64 -t $TAG --load .
+
+
+# 2. 导出镜像
+❌
+docker save currency-service:latest -o currency-service-amd64.tar
+
+✅
+docker save currency-service:latest -o currency-service-$(date +%Y%m%d-%H).tar
+
+# 3. 上传-	直接用阿里云平台上传
+https://ecs.console.aliyun.com/server/i-wz9g6cft894x8nzr81c9/command-invocation-list?regionId=cn-shenzhen&tab=send-file-list
+
+# 4 远程服务器-启动 命令行
+docker rm -f currency-service-container && docker run -d --name currency-service-container -p 8080:8080 currency-service:latest
+
+# 5.验证是否成功启动
+http://112.74.98.225:8080/swagger-ui/index.html
