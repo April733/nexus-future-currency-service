@@ -44,6 +44,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         username, null, new ArrayList<>());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                
+                // 从 Token 中提取 userId 并存储到 request attribute
+                String userId = jwtUtil.extractUserId(jwt);
+                request.setAttribute("userId", userId);
             }
         }
         filterChain.doFilter(request, response);

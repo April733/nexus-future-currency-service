@@ -82,23 +82,21 @@ public class UserController {
             @NotBlank(message = "密码不能为空") 
             @RequestParam String password) {
         
-        // 1. 尝试查找用户
         Optional<User> userOpt = userService.getUserByUsername(username);
         if (userOpt.isEmpty()) {
             return Result.fail(400, "用户不存在，请先注册");
         }
 
-        // 2. 验证密码
         if (!userService.checkPassword(userOpt.get(), password)) {
             return Result.fail(401, "密码错误，请重试");
         }
 
-        // 3. 生成 Token
         User user = userOpt.get();
-        String token = jwtUtil.generateToken(user.getUsername());
+        String token = jwtUtil.generateToken(user.getUsername(), user.getUserId());
         
         Map<String, String> result = new HashMap<>();
         result.put("token", token);
+        result.put("userId", user.getUserId());
         return Result.success(result);
     }
 

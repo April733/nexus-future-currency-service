@@ -26,27 +26,48 @@ docker exec -i mysql-container mysql -uroot -p -Bse "SELECT user, host FROM mysq
 
 
 【部署docker至远程服务】
-# 1. 构建服务器能用的镜像（指定 x86 架构）
+1.mvn clean package -DskipTests
+
+# 2. 构建服务器能用的镜像（指定 x86 架构）
 ❌
 docker buildx build --platform linux/amd64 -t currency-service:latest --load .
 
-✅
+❌
 TAG=currency-service:$(date +%Y%m%d-%H)
 docker buildx build --platform linux/amd64 -t $TAG --load .
+✅
+TAG=currency-service:$(date +%Y%m%d-%H)
+docker buildx build --platform linux/amd64 -t $TAG -t currency-service:latest --load .
 
 
-# 2. 导出镜像
+# 3. 导出镜像
 ❌
 docker save currency-service:latest -o currency-service-amd64.tar
 
-✅
+❌
 docker save currency-service:latest -o currency-service-$(date +%Y%m%d-%H).tar
+✅
+docker save $TAG currency-service:latest -o currency-service-$(date +%Y%m%d-%H).tar
 
-# 3. 上传-	直接用阿里云平台上传
+# 4. 上传-	直接用阿里云平台上传
 https://ecs.console.aliyun.com/server/i-wz9g6cft894x8nzr81c9/command-invocation-list?regionId=cn-shenzhen&tab=send-file-list
 
-# 4 远程服务器-启动 命令行
+
+# 5 远程服务器-启动 命令行
+# 5.1. 先删除本地旧镜像（这是你唯一缺的一步）
+docker rmi -f currency-service:latest
+
+# 5.2. 加载新镜像
+docker load -i currency-service-20260501-15.tar
+
+# 5.3. 删除旧容器 + 启动新容器
 docker rm -f currency-service-container && docker run -d --name currency-service-container -p 8080:8080 currency-service:latest
 
-# 5.验证是否成功启动
+# 5.4. 查看运行状态
+docker ps
+
+# 5.5. 查看日志
+docker logs -f currency-service-container
+
+# 6.验证是否成功启动
 http://112.74.98.225:8080/swagger-ui/index.html
