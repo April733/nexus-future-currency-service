@@ -33,15 +33,13 @@ public class ExchangeRateScheduler {
      *
      * @see <a href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html">ECB Exchange Rates</a>
      */
-    @Scheduled(cron = "0 30 17 * * MON-FRI", zone = "CET")
+    @Scheduled(cron = "0 0 9 ? * MON-FRI")
     public void fetch() {
         log.info("开始执行定时任务：触发汇率拉取与持久化...");
         try {
             exchangeRateService.fetchAndPersistLatestRate();
             log.info("定时任务成功完成：汇率业务逻辑已执行。");
         } catch (Exception e) {
-            // ExchangeRateService 内部已经记录了详细的错误日志。
-            // 这里只记录顶层的任务失败信息，避免日志重复。
             log.error("汇率拉取定时任务执行失败。", e);
         }
     }
