@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling // 开启定时器
+@EnableScheduling //   开启定时器
 public class ExchangeServiceApplication {
 
     public static void main(String[] args) {
