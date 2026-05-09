@@ -1,16 +1,14 @@
 package com.nexusfuture.currency.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nexusfuture.currency.dto.BillCreateRequest;
 import com.nexusfuture.currency.dto.BillResponse;
 import com.nexusfuture.currency.dto.BillUpdateRequest;
 import com.nexusfuture.currency.entity.Bill;
-import com.nexusfuture.currency.repository.BillRepository;
+import com.nexusfuture.currency.mapper.BillMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +22,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BillService {
 
-    private final BillRepository billRepository;
+    private final BillMapper billMapper;
 
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -54,28 +52,29 @@ public class BillService {
         bill.setCreateTime(now);
         bill.setUpdateTime(now);
 
-        Bill saved = billRepository.save(bill);
-        log.info("用户 {} 创建账单成功，ID: {}", userId, saved.getId());
+        billMapper.insert(bill);
+        log.info("用户 {} 创建账单成功，ID: {}", userId, bill.getId());
 
-        return convertToResponse(saved);
+        return convertToResponse(bill);
     }
 
     /**
      * 分页查询账单列表
      */
-    public Page<BillResponse> getBillList(String userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("billDate").descending());
-        Page<Bill> bills = billRepository.findByUserIdAndStatusTrueAndIsDeletedFalseOrderByBillDateDesc(
-                userId, pageable);
+    public IPage<BillResponse> getBillList(String userId, int page, int size) {
+        Page<Bill> mpPage = new Page<>(page, size);
+        IPage<Bill> bills = billMapper.findByUserIdAndStatusTrueAndIsDeletedFalseOrderByBillDateDesc(
+                mpPage, userId);
 
-        return bills.map(this::convertToResponse);
+        return bills.convert(this::convertToResponse);
     }
 
     /**
      * 查询账单详情
      */
     public BillResponse getBillDetail(String userId, Long id) {
-        Bill bill = billRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId);
+        log.info("正在查询账单详情: userId={}, billId={}", userId, id);
+        Bill bill = billMapper.findByIdAndUserIdAndIsDeletedFalse(id, userId);
         if (bill == null) {
             throw new RuntimeException("账单不存在或无权访问");
         }
@@ -87,7 +86,7 @@ public class BillService {
      */
     @Transactional
     public BillResponse updateBill(String userId, Long id, BillUpdateRequest request) {
-        Bill bill = billRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId);
+        Bill bill = billMapper.findByIdAndUserIdAndIsDeletedFalse(id, userId);
         if (bill == null) {
             throw new RuntimeException("账单不存在或无权访问");
         }
@@ -115,10 +114,10 @@ public class BillService {
         }
 
         bill.setUpdateTime(LocalDateTime.now().format(FORMATTER));
-        Bill updated = billRepository.save(bill);
+        billMapper.updateById(bill);
 
         log.info("用户 {} 更新账单成功，ID: {}", userId, id);
-        return convertToResponse(updated);
+        return convertToResponse(bill);
     }
 
     /**
@@ -126,14 +125,14 @@ public class BillService {
      */
     @Transactional
     public void deleteBill(String userId, Long id) {
-        Bill bill = billRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId);
+        Bill bill = billMapper.findByIdAndUserIdAndIsDeletedFalse(id, userId);
         if (bill == null) {
             throw new RuntimeException("账单不存在或无权访问");
         }
 
         bill.setIsDeleted(true);
         bill.setUpdateTime(LocalDateTime.now().format(FORMATTER));
-        billRepository.save(bill);
+        billMapper.updateById(bill);
 
         log.info("用户 {} 删除账单成功，ID: {}", userId, id);
     }
@@ -143,24 +142,24 @@ public class BillService {
      */
     @Transactional
     public BillResponse toggleBillStatus(String userId, Long id) {
-        Bill bill = billRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId);
+        Bill bill = billMapper.findByIdAndUserIdAndIsDeletedFalse(id, userId);
         if (bill == null) {
             throw new RuntimeException("账单不存在或无权访问");
         }
 
         bill.setStatus(!bill.getStatus());
         bill.setUpdateTime(LocalDateTime.now().format(FORMATTER));
-        Bill updated = billRepository.save(bill);
+        billMapper.updateById(bill);
 
-        log.info("用户 {} 切换账单状态，ID: {}, 新状态: {}", userId, id, updated.getStatus());
-        return convertToResponse(updated);
+        log.info("用户 {} 切换账单状态，ID: {}, 新状态: {}", userId, id, bill.getStatus());
+        return convertToResponse(bill);
     }
 
     /**
      * 按分类查询
      */
     public List<BillResponse> getBillsByCategory(String userId, String category) {
-        List<Bill> bills = billRepository
+        List<Bill> bills = billMapper
                 .findByUserIdAndCategoryAndStatusTrueAndIsDeletedFalseOrderByBillDateDesc(
                         userId, category);
         return bills.stream().map(this::convertToResponse).collect(Collectors.toList());
@@ -170,7 +169,7 @@ public class BillService {
      * 按货币查询
      */
     public List<BillResponse> getBillsByCurrency(String userId, String currency) {
-        List<Bill> bills = billRepository
+        List<Bill> bills = billMapper
                 .findByUserIdAndCurrencyAndStatusTrueAndIsDeletedFalseOrderByBillDateDesc(
                         userId, currency);
         return bills.stream().map(this::convertToResponse).collect(Collectors.toList());

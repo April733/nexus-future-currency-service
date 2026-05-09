@@ -1,45 +1,46 @@
 package com.nexusfuture.currency.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-@Entity
-@Table(name = "bill")
+@TableName("bill")
 public class Bill {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false, length = 50)
-    private String userId;  // 绑定用户
+    @TableField("user_id")
+    private String userId;
 
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount;  // 金额
+    @TableField("amount")
+    private BigDecimal amount;
 
-    @Column(nullable = false, length = 10)
-    private String currency;  // 货币代码：CNY/USD/EUR
+    @TableField("currency")
+    private String currency;
 
-    @Column(nullable = false, length = 20)
-    private String category;  // 分类：餐饮/住宿/交通/购物/其他
+    @TableField("category")
+    private String category;
 
-    @Column(length = 10)
-    private String remark;  // 备注，最多10字符
+    @TableField("remark")
+    private String remark;
 
-    @Column(nullable = false, length = 20)
-    private String billDate;  // 账单日期：2026-05-02 或 2026-05-02 12:07:11
+    @TableField("bill_date")
+    private String billDate;
 
-    @Column(nullable = false)
-    private Boolean status = true;  // 状态：true-启用，false-关闭
+    @TableField("status")
+    private Boolean status;
 
-    @Column(nullable = false)
-    private Boolean isDeleted = false;  // 逻辑删除
+    @TableField("is_deleted")
+    private Boolean isDeleted;
 
-    @Column(length = 255)
+    @TableField("create_time")
     private String createTime;
 
-    @Column(length = 255)
+    @TableField("update_time")
     private String updateTime;
 }

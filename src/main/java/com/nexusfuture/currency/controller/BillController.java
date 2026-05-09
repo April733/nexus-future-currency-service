@@ -1,5 +1,6 @@
 package com.nexusfuture.currency.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nexusfuture.currency.common.Result;
 import com.nexusfuture.currency.dto.BillCreateRequest;
 import com.nexusfuture.currency.dto.BillResponse;
@@ -11,7 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,12 +36,12 @@ public class BillController {
 
     @Operation(summary = "分页查询账单列表", description = "获取当前用户的账单列表（分页）")
     @GetMapping("/list")
-    public Result<Page<BillResponse>> getBillList(
+    public Result<IPage<BillResponse>> getBillList(
             HttpServletRequest request,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         String userId = (String) request.getAttribute("userId");
-        Page<BillResponse> list = billService.getBillList(userId, page, size);
+        IPage<BillResponse> list = billService.getBillList(userId, page, size);
         return Result.success(list);
     }
 

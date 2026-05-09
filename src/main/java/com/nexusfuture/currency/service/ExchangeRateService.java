@@ -5,7 +5,7 @@ import com.nexusfuture.currency.config.RedisProperties;
 import com.nexusfuture.currency.constant.RedisKeyConstant;
 import com.nexusfuture.currency.dto.HistoryRateDto;
 import com.nexusfuture.currency.entity.ExchangeRate;
-import com.nexusfuture.currency.repository.ExchangeRateRepository;
+import com.nexusfuture.currency.mapper.ExchangeRateMapper;
 import com.nexusfuture.currency.util.CurrencyXmlParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +40,7 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class ExchangeRateService {
 
-    private final ExchangeRateRepository repository; // 仅保留用于每日快照（如果还需要的话）
+    private final ExchangeRateMapper exchangeRateMapper;
     private final EcbExchangeRateHttpClient ecbHttpClient;
     private final ObjectProvider<RedisCacheService> cacheProvider;
     private final ObjectProvider<RedisProperties> redisPropertiesProvider;
@@ -52,7 +52,6 @@ public class ExchangeRateService {
      * RowMapper: 将 ResultSet 映射为 HistoryRateDto
      */
     private final RowMapper<HistoryRateDto> historyRowMapper = (rs, rowNum) -> {
-        // 使用构造函数直接初始化，避免依赖 Setter
         return new HistoryRateDto(
             rs.getString("rate_date"),
             rs.getBigDecimal("rate_value")
@@ -61,7 +60,6 @@ public class ExchangeRateService {
 
     /**
      * 执行一次完整的汇率获取、持久化和缓存更新流程。
-     * 这是该服务的主要业务方法。
      */
     public void fetchAndPersistLatestRate() {
         log.info("开始执行业务逻辑：拉取并持久化欧洲央行每日汇率...");
@@ -74,10 +72,9 @@ public class ExchangeRateService {
             ExchangeRate rate = new ExchangeRate();
             rate.setUrl(url);
             rate.setRawXml(xml);
-            // 时间直接存字符串
             String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             rate.setCreateTime(now);
-            repository.save(rate);
+            exchangeRateMapper.insert(rate);
             log.info("汇率数据成功保存到数据库：{}", rate);
 
             // 3. 如果 Redis 缓存服务和相关配置都可用，则更新缓存
@@ -97,7 +94,6 @@ public class ExchangeRateService {
             });
         } catch (Exception e) {
             log.error("拉取并持久化每日汇率失败：{}", e.getMessage(), e);
-            // 向上抛出运行时异常，以便调用方（如 Scheduler）可以捕获并记录更高层次的失败
             throw new RuntimeException("Failed to fetch and persist latest exchange rate.", e);
         }
     }
@@ -123,12 +119,11 @@ public class ExchangeRateService {
 
         // 2. 缓存未命中 → 查库
         log.warn("缓存未命中，查询数据库");
-        Optional<ExchangeRate> dbOpt = repository.findFirstByOrderByCreateTimeDesc();
-        if (dbOpt.isEmpty()) {
+        ExchangeRate rate = exchangeRateMapper.findFirstByOrderByCreateTimeDesc();
+        if (rate == null) {
             return Optional.empty();
         }
 
-        ExchangeRate rate = dbOpt.get();
         String raw = CurrencyXmlParser.parseToCurrencyRateList(rate.getRawXml());
 
         // 3. 回填缓存
@@ -206,7 +201,7 @@ public class ExchangeRateService {
                     ps.setString(1, (String) args[0]);
                     ps.setString(2, (String) args[1]);
                     ps.setBigDecimal(3, (BigDecimal) args[2]);
-                    ps.setString(4, (String) args[3]); // 改为 setString 以匹配格式化后的时间
+                    ps.setString(4, (String) args[3]);
                 }
                 @Override
                 public int getBatchSize() { return batchArgs.size(); }

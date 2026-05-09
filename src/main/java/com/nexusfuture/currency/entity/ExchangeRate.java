@@ -1,23 +1,24 @@
 package com.nexusfuture.currency.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@Entity
-@Table(name = "exchange_rate")
+@TableName("exchange_rate")
 public class ExchangeRate {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "url", length = 512)
-    private String url;           // 保存请求的URL
+    @TableField("url")
+    private String url;
 
-    @Column(name = "raw_xml", columnDefinition = "LONGTEXT")
-    private String rawXml;        // 原始XML
+    @TableField("raw_xml")
+    private String rawXml;
 
-    @Column(name = "create_time", length = 255)
+    @TableField("create_time")
     private String createTime;
 }

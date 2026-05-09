@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -32,22 +33,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.substring(7);
             try {
-                username = jwtUtil.extractUsername(jwt);
+                // 修改处：使用 extractClaims().getSubject() 替代 extractUsername()
+                username = jwtUtil.extractClaims(jwt).getSubject();
             } catch (Exception e) {
                 // Token 解析失败，忽略
             }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            if (jwtUtil.validateToken(jwt, username)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        username, null, new ArrayList<>());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-                
-                // 从 Token 中提取 userId 并存储到 request attribute
-                String userId = jwtUtil.extractUserId(jwt);
-                request.setAttribute("userId", userId);
+            try {
+                // 校验：确保是 ACCESS 类型且未过期
+                if (jwtUtil.extractType(jwt).equals("ACCESS") && 
+                    jwtUtil.extractClaims(jwt).getExpiration().after(new Date())) {
+                    
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            username, null, new ArrayList<>());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    
+                    request.setAttribute("userId", jwtUtil.extractUserId(jwt));
+                }
+            } catch (Exception e) {
+                // 校验失败，不设置认证信息
             }
         }
         filterChain.doFilter(request, response);
