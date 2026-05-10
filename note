@@ -55,26 +55,14 @@ or 命令行上传：
 scp /Users/april/Desktop/cursor-project/nexus-future-currency-service/currency-service-20260510-11.tar root@112.74.98.225:/root/
 
 # 5 远程服务器-启动 命令行
-# 5.1. 先删除本地旧镜像（这是你唯一缺的一步）
+# 5.1. 先删除本地旧镜像
 docker rmi -f currency-service:latest
 
 # 5.2. 加载新镜像
-docker load -i currency-service-20260509-12.tar
+docker load -i currency-service-20260510-11.tar
 
 # 5.3. 删除旧容器 + 启动新容器
 docker rm -f currency-service-container && docker run -d --name currency-service-container -p 8080:8080 currency-service:latest
-
-#####为什么这么改？redis为什么连不上了？
-docker rm -f currency-service-container && docker run -d \
-  --name currency-service-container \
-  -p 8080:8080 \
-  -e CURRENCY_REDIS_HOST=112.74.98.225 \
-  -e CURRENCY_REDIS_PASSWORD= \
-  -e SPRING_DATASOURCE_URL="jdbc:mysql://112.74.98.225:3306/currency_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true" \
-  -e SPRING_DATASOURCE_USERNAME=root \
-  -e SPRING_DATASOURCE_PASSWORD=currency123456 \
-  currency-service:latest
-
 
 # 5.4. 查看运行状态
 docker ps

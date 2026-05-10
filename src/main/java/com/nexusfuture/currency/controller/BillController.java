@@ -5,6 +5,8 @@ import com.nexusfuture.currency.common.Result;
 import com.nexusfuture.currency.dto.BillCreateRequest;
 import com.nexusfuture.currency.dto.BillResponse;
 import com.nexusfuture.currency.dto.BillUpdateRequest;
+import com.nexusfuture.currency.dto.BillGroupedPageResponse;
+import com.nexusfuture.currency.dto.BillMonthlyPageRequest;
 import com.nexusfuture.currency.service.BillService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -108,6 +110,37 @@ public class BillController {
         String userId = (String) request.getAttribute("userId");
         List<BillResponse> list = billService.getBillsByCurrency(userId, currency);
         return Result.success(list);
+    }
+
+    @Operation(summary = "分页查询按日期分组的账单列表", description = "获取当前用户按日期分组的账单列表（分页）")
+    @GetMapping("/grouped-list")
+    public Result<BillGroupedPageResponse> getGroupedBillList(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        String userId = (String) request.getAttribute("userId");
+        BillGroupedPageResponse response = billService.getGroupedBillList(userId, page, size);
+        return Result.success(response);
+    }
+
+    @Operation(summary = "按月份分页查询账单列表", description = "按月份获取当前用户按日期分组的账单列表（推荐）")
+    @GetMapping("/monthly-grouped-list")
+    public Result<BillGroupedPageResponse> getMonthlyGroupedBillList(
+            HttpServletRequest request,
+            @RequestParam(required = false) String yearMonth,
+            @RequestParam(defaultValue = "1") int months) {
+        String userId = (String) request.getAttribute("userId");
+        // 🔒 核心安全校验：防止未登录/空 userId 击穿数据库
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("用户未登录或会话已过期");
+        }
+        // 🔒 参数范围校验：防止恶意请求拖垮数据库
+        if (months < 1 || months > 12) {
+            throw new IllegalArgumentException("月份范围必须在 1-12 之间");
+        }
+        
+        BillGroupedPageResponse response = billService.getMonthlyGroupedBillList(userId, yearMonth, months);
+        return Result.success(response);
     }
 
 }

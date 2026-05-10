@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nexusfuture.currency.dto.BillCreateRequest;
 import com.nexusfuture.currency.dto.BillResponse;
 import com.nexusfuture.currency.dto.BillUpdateRequest;
+import com.nexusfuture.currency.dto.BillGroupedByDateResponse;
+import com.nexusfuture.currency.dto.BillGroupedPageResponse;
+import com.nexusfuture.currency.dto.BillMonthlyPageRequest;
 import com.nexusfuture.currency.entity.Bill;
 import com.nexusfuture.currency.mapper.BillMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -175,6 +179,154 @@ public class BillService {
         return bills.stream().map(this::convertToResponse).collect(Collectors.toList());
     }
 
+    /**
+     * 分页查询按日期分组的账单列表
+     */
+    public BillGroupedPageResponse getGroupedBillList(String userId, int page, int size) {
+        Page<Bill> mpPage = new Page<>(page, size);
+        IPage<Bill> bills = billMapper.findByUserIdAndStatusTrueAndIsDeletedFalseOrderByBillDateDesc(
+                mpPage, userId);
+
+        List<Bill> billList = bills.getRecords();
+
+        // 按日期分组（关键修复：使用 substring 提取日期部分）
+        List<BillGroupedByDateResponse> groupedBills = billList.stream()
+                .collect(Collectors.groupingBy(
+                        bill -> bill.getBillDate().substring(0, 10),  // 提取 "yyyy-MM-dd"
+                        Collectors.toList()
+                ))
+                .entrySet().stream()
+                .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey()))
+                .map(entry -> {
+                    String date = entry.getKey();
+                    List<Bill> dayBills = entry.getValue();
+
+                    List<BillGroupedByDateResponse.BillItemResponse> billItems = dayBills.stream()
+                            .map(this::convertToItemResponse)
+                            .collect(Collectors.toList());
+
+                    BigDecimal dailyTotal = dayBills.stream()
+                            .map(Bill::getAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    return BillGroupedByDateResponse.builder()
+                            .date(date)
+                            .dailyTotal(dailyTotal)
+                            .bills(billItems)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // 计算总金额
+        BigDecimal total = billList.stream()
+                .map(Bill::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return BillGroupedPageResponse.builder()
+                .groupedBills(groupedBills)
+                .total(total)
+                .currentYearMonth(null)
+                .nextYearMonth(null)
+                .hasMore(bills.getCurrent() < bills.getPages())
+                .build();
+    }
+
+    /**
+     * 按月份分页查询账单列表（推荐方案）
+     */
+    public BillGroupedPageResponse getMonthlyGroupedBillList(String userId, String yearMonth, int months) {
+        // 🔒 安全拦截：防止脏数据或非标准格式传入数据库
+        if (yearMonth != null && !yearMonth.matches("\\d{4}-\\d{2}")) {
+            throw new IllegalArgumentException("月份格式错误，必须为 yyyy-MM");
+        }
+
+        // 1. 如果未指定月份，获取最新月份
+        if (yearMonth == null || yearMonth.isEmpty()) {
+            String latest = billMapper.findLatestYearMonth(userId);
+            if (latest == null) {
+                return BillGroupedPageResponse.builder()
+                        .groupedBills(List.of())
+                        .total(BigDecimal.ZERO)
+                        .hasMore(false)
+                        .build();
+            }
+            yearMonth = latest;
+        }
+
+        // 2. 查询指定月份及之前N个月的账单
+        List<String> yearMonths = new java.util.ArrayList<>();
+        yearMonths.add(yearMonth);
+        
+        if (months > 1) {
+            List<String> previousMonths = billMapper.findPreviousYearMonths(userId, yearMonth, months - 1);
+            yearMonths.addAll(previousMonths);
+        }
+
+        // 3. 收集所有月份的账单
+        List<Bill> allBills = new java.util.ArrayList<>();
+        for (String ym : yearMonths) {
+            List<Bill> monthBills = billMapper.findByUserIdAndYearMonthOrderByBillDateDesc(userId, ym);
+            allBills.addAll(monthBills);
+        }
+
+        // 4. 按日期分组（关键修复：使用 substring 提取日期部分）
+        List<BillGroupedByDateResponse> groupedBills = allBills.stream()
+                .collect(Collectors.groupingBy(
+                        bill -> bill.getBillDate().substring(0, 10),  // 提取 "yyyy-MM-dd"
+                        Collectors.toList()
+                ))
+                .entrySet().stream()
+                .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey()))
+                .map(entry -> {
+                    String date = entry.getKey();
+                    List<Bill> dayBills = entry.getValue();
+
+                    List<BillGroupedByDateResponse.BillItemResponse> billItems = dayBills.stream()
+                            .map(this::convertToItemResponse)
+                            .collect(Collectors.toList());
+
+                    BigDecimal dailyTotal = dayBills.stream()
+                            .map(Bill::getAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    return BillGroupedByDateResponse.builder()
+                            .date(date)
+                            .dailyTotal(dailyTotal)
+                            .bills(billItems)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // 5. 计算总金额
+        BigDecimal total = allBills.stream()
+                .map(Bill::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 6. 判断是否有更多数据
+        String latestMonth = billMapper.findLatestYearMonth(userId);
+        boolean hasMore = !yearMonth.equals(latestMonth) || 
+                         (months > 0 && !yearMonths.get(yearMonths.size() - 1).equals(latestMonth));
+
+        // 7. 计算下一个游标（上一个月份）
+        String nextYearMonth = null;
+        if (hasMore) {
+            // 获取当前最早月份的前一个月
+            String earliestMonth = yearMonths.get(yearMonths.size() - 1);
+            List<String> prevMonths = billMapper.findPreviousYearMonths(userId, earliestMonth, 1);
+            if (!prevMonths.isEmpty()) {
+                nextYearMonth = prevMonths.get(0);
+            }
+        }
+
+        return BillGroupedPageResponse.builder()
+                .groupedBills(groupedBills)
+                .total(total)
+                .currentYearMonth(yearMonth)
+                .nextYearMonth(nextYearMonth)
+                .hasMore(hasMore)
+                .build();
+    }
+
     // ========== 私有方法 ==========
 
     private BillResponse convertToResponse(Bill bill) {
@@ -187,6 +339,18 @@ public class BillService {
                 .billDate(bill.getBillDate())
                 .status(bill.getStatus())
                 .createTime(bill.getCreateTime())
+                .build();
+    }
+
+    private BillGroupedByDateResponse.BillItemResponse convertToItemResponse(Bill bill) {
+        return BillGroupedByDateResponse.BillItemResponse.builder()
+                .id(bill.getId())
+                .amount(bill.getAmount())
+                .currency(bill.getCurrency())
+                .category(bill.getCategory())
+                .remark(bill.getRemark())
+                .billDate(bill.getBillDate())
+                .status(bill.getStatus())
                 .build();
     }
 
