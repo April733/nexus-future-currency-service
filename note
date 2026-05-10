@@ -52,7 +52,9 @@ docker save $TAG currency-service:latest -o currency-service-$(date +%Y%m%d-%H).
 # 4. 上传-	直接用阿里云平台上传：
 https://ecs.console.aliyun.com/server/i-wz9g6cft894x8nzr81c9/command-invocation-list?regionId=cn-shenzhen&tab=send-file-list
 or 命令行上传：
-scp /Users/april/Desktop/cursor-project/nexus-future-currency-service/currency-service-20260510-11.tar root@112.74.98.225:/root/
+scp /Users/april/Desktop/cursor-project/nexus-future-currency-service/currency-service-20260510-13.tar root@112.74.98.225:/root/
+rsync -avz --progress /Users/april/Desktop/xxx.tar root@112.74.98.225:/root/
+rsync -avz --progress /Users/april/Desktop/cursor-project/nexus-future-currency-service/currency-service-20260510-13.tar root@112.74.98.225:/root/
 
 # 5 远程服务器-启动 命令行
 # 5.1. 先删除本地旧镜像
