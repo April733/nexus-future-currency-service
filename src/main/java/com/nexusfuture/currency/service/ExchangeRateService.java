@@ -1,7 +1,6 @@
 package com.nexusfuture.currency.service;
 
 import com.nexusfuture.currency.client.EcbExchangeRateHttpClient;
-import com.nexusfuture.currency.config.RedisProperties;
 import com.nexusfuture.currency.constant.RedisKeyConstant;
 import com.nexusfuture.currency.dto.HistoryRateDto;
 import com.nexusfuture.currency.entity.ExchangeRate;
@@ -43,7 +42,6 @@ public class ExchangeRateService {
     private final ExchangeRateMapper exchangeRateMapper;
     private final EcbExchangeRateHttpClient ecbHttpClient;
     private final ObjectProvider<RedisCacheService> cacheProvider;
-    private final ObjectProvider<RedisProperties> redisPropertiesProvider;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -77,20 +75,18 @@ public class ExchangeRateService {
             exchangeRateMapper.insert(rate);
             log.info("汇率数据成功保存到数据库：{}", rate);
 
-            // 3. 如果 Redis 缓存服务和相关配置都可用，则更新缓存
+            // 3. 如果 Redis 缓存服务可用，则更新缓存
             cacheProvider.ifAvailable(cache -> {
-                redisPropertiesProvider.ifAvailable(redisProperties -> {
 
-                    // 3.1. 先删除所有旧的汇率缓存
-                    cache.deleteByPrefix(RedisKeyConstant.CURRENCY_ECB);
-                    log.info("旧缓存 {} 已删除", RedisKeyConstant.CURRENCY_ECB);
+                // 3.1. 先删除所有旧的汇率缓存
+                cache.deleteByPrefix(RedisKeyConstant.CURRENCY_ECB);
+                log.info("旧缓存 {} 已删除", RedisKeyConstant.CURRENCY_ECB);
 
-                    // 3.2. 写入缓存
-                    cache.set(RedisKeyConstant.CURRENCY_ECB, CurrencyXmlParser.parseToCurrencyRateList(xml), RedisKeyConstant.TTL);
+                // 3.2. 写入缓存
+                cache.set(RedisKeyConstant.CURRENCY_ECB, CurrencyXmlParser.parseToCurrencyRateList(xml), RedisKeyConstant.TTL);
 
-                    log.info("Redis 已写入当日缓存 {}，XML={}，TTL={}", RedisKeyConstant.CURRENCY_ECB, xml, RedisKeyConstant.TTL);
+                log.info("Redis 已写入当日缓存 {}，XML={}，TTL={}", RedisKeyConstant.CURRENCY_ECB, xml, RedisKeyConstant.TTL);
 
-                });
             });
         } catch (Exception e) {
             log.error("拉取并持久化每日汇率失败：{}", e.getMessage(), e);
@@ -105,10 +101,9 @@ public class ExchangeRateService {
      */
     public Optional<String> findLatestRate() {
         RedisCacheService cache = cacheProvider.getIfAvailable();
-        RedisProperties redisProperties = redisPropertiesProvider.getIfAvailable();
 
         // 1. 先读缓存
-        if (cache != null && redisProperties != null) {
+        if (cache != null) {
             Optional<String> xmlOpt = cache.get(RedisKeyConstant.CURRENCY_ECB, String.class);
             if (xmlOpt.isPresent()) {
                 log.info("缓存命中，返回 XML {}", xmlOpt.get());
@@ -127,7 +122,7 @@ public class ExchangeRateService {
         String raw = CurrencyXmlParser.parseToCurrencyRateList(rate.getRawXml());
 
         // 3. 回填缓存
-        if (cache != null && redisProperties != null) {
+        if (cache != null) {
             try {
                 cache.set(RedisKeyConstant.CURRENCY_ECB, raw, RedisKeyConstant.TTL);
                 log.info("已自动回填 Redis 缓存，XML={}", raw);

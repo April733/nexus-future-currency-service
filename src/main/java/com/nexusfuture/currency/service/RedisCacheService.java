@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -12,20 +11,12 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * 通用的 Redis 缓存服务。
- * <p>
- * 提供基于 String Key 的基本缓存操作（set, get, delete），
- * 并通过 Jackson 处理对象的 JSON 序列化和反序列化。
- * 这是一个与业务无关的通用组件，可用于缓存任何类型的数据。
- */
 @Slf4j
 @Service
-@ConditionalOnBean(name = "currencyRedisTemplate")
 @RequiredArgsConstructor
 public class RedisCacheService {
 
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
     /**
@@ -56,14 +47,23 @@ public class RedisCacheService {
      */
     public <T> Optional<T> get(String key, Class<T> valueType) {
         try {
-            String jsonValue = redisTemplate.opsForValue().get(key);
-            if (jsonValue == null) {
+            Object value = redisTemplate.opsForValue().get(key);
+            if (value == null) {
                 log.debug("Redis cache miss. key={}", key);
                 return Optional.empty();
             }
-            T value = objectMapper.readValue(jsonValue, valueType);
+            
+            T result;
+            if (valueType.isInstance(value)) {
+                result = valueType.cast(value);
+            } else if (value instanceof String) {
+                result = objectMapper.readValue((String) value, valueType);
+            } else {
+                result = objectMapper.convertValue(value, valueType);
+            }
+            
             log.debug("Redis cache hit. key={}", key);
-            return Optional.of(value);
+            return Optional.of(result);
         } catch (JsonProcessingException e) {
             log.error("从 Redis 反序列化对象失败, key={}, targetType={}", key, valueType.getName(), e);
             // 如果反序列化失败，安全起见可以删除这个损坏的键
@@ -88,7 +88,7 @@ public class RedisCacheService {
      * 删除所有匹配指定前缀的键。
      * <p>
      * <b>注意：</b>在 Redis 中，{@code KEYS} 命令可能会阻塞服务器。
-     * 在生产环境中，如果键空间很大，应考虑使用 {@code SCAN} 命令代替。
+     * 生产环境中，如果键空间很大，应考虑使用 {@code SCAN} 命令代替。
      * 为简单起见，此处仍使用 {@code KEYS}。
      *
      * @param prefix 键的前缀
