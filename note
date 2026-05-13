@@ -74,3 +74,8 @@ docker logs -f currency-service-container
 
 # 6.验证是否成功启动
 http://112.74.98.225:8080/swagger-ui/index.html
+
+
+——————————
+直接在远程服务器上拉取分支代码进行部署
+cd /root && git clone -b dev_202604_April https://github.com/April733/nexus-future-currency-service.git && cd nexus-future-currency-service && docker build -t currency-service . && docker save -o /root/currency-service.tar currency-service

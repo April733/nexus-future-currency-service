@@ -33,9 +33,15 @@ build/
 ### VS Code ###
 .vscode/
 
-# 忽略 SpringBoot 配置文件（保护密钥）
-src/main/resources/application.properties
-src/main/resources/application.yml
-src/main/resources/application-dev.yml
 
 /prompt/
+
+# 敏感配置文件
+src/main/resources/application.properties
+src/main/resources/application-*.yml
+.env
+.env.local
+docker-compose.override.yml
+
+# Docker 相关
+docker-compose.dev.yml
