@@ -1,0 +1,28 @@
+第一步：拉取远程分支代码
+git clone -b dev_202604_April git@github.com:April733/nexus-future-currency-service.git
+第二步：进入项目并检查
+cd nexus-future-currency-service
+ls -l
+第三步：Docker 打包发布
+# 1. 构建镜像 (注意末尾有一个点，代表当前目录)
+docker build -t nexus-future-service:20260511 .
+
+# 2. 查看构建好的镜像
+docker images
+
+——————————————————————
+
+# 1. 停止并删除旧容器
+docker rm -f currency-service-container
+
+# 2. 启动新镜像（保持 8080 端口映射和网络连接）
+docker run -d \
+  --name currency-service-container \
+  -p 8080:8080 \
+  --restart always \
+  --link mysql-container:db \
+  --link redis-container:redis \
+  nexus-future-service:20260511
+
+# 3. 查看启动日志，确认 Java 应用是否跑起来了
+docker logs -f currency-service-container
