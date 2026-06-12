@@ -50,4 +50,21 @@ public interface BocExchangeRateMapper extends BaseMapper<BocExchangeRate> {
      */
     @Select("SELECT * FROM boc_exchange_rate ORDER BY create_time DESC LIMIT #{limit}")
     List<BocExchangeRate> findTopNByOrderByCreateTimeDesc(@Param("limit") int limit);
+
+    /**
+     * 根据货币代码列表批量查询最新记录（每个货币代码返回最新的一条）
+     */
+    @Select("<script>" +
+            "SELECT t1.* FROM boc_exchange_rate t1 " +
+            "INNER JOIN (" +
+            "  SELECT currency_code, MAX(create_time) AS max_time " +
+            "  FROM boc_exchange_rate " +
+            "  WHERE currency_code IN " +
+            "  <foreach item='code' collection='currencyCodes' open='(' separator=',' close=')'>" +
+            "    #{code}" +
+            "  </foreach>" +
+            "  GROUP BY currency_code" +
+            ") t2 ON t1.currency_code = t2.currency_code AND t1.create_time = t2.max_time" +
+            "</script>")
+    List<BocExchangeRate> findLatestByCurrencyCodes(@Param("currencyCodes") List<String> currencyCodes);
 }

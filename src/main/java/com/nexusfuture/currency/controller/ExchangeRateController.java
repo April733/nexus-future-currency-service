@@ -1,7 +1,10 @@
 package com.nexusfuture.currency.controller;
 
 import com.nexusfuture.currency.common.Result;
+import com.nexusfuture.currency.dto.BocRateDto;
+import com.nexusfuture.currency.dto.CurrencyRateDto;
 import com.nexusfuture.currency.dto.HistoryRateDto;
+import com.nexusfuture.currency.service.BocExchangeRateService;
 import com.nexusfuture.currency.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -20,22 +24,35 @@ import java.util.List;
 public class ExchangeRateController {
 
     private final ExchangeRateService exchangeRateService;
+    private final BocExchangeRateService bocExchangeRateService;
 
     /**
      * 获取最新的汇率数据。
      * <p>
      * 该实现利用了 Optional 的链式调用，代码更简洁、安全。
      *
+     * @param source 数据源类型：ECB（欧洲央行）或 BOC（中国银行），默认为 ECB
      * @return 包含最新汇率数据的 Result 对象，如果找不到则返回失败的 Result。
      */
     @GetMapping("/getLatestRate")
-    public Result<?> getLatestRate() {
-        return exchangeRateService.findLatestRate()
-                .map(xml -> {
-                    log.info("成功获取最新汇率数据，来源：{}", xml);
-                    return Result.success(xml);
-                })
-                .orElse(Result.fail(404, "无法获取到最新的汇率数据"));
+    public Result<List<CurrencyRateDto>> getLatestRate(@RequestParam(defaultValue = "ECB") String source) {
+        if ("BOC".equalsIgnoreCase(source)) {
+            // 调用中行汇率服务
+            return bocExchangeRateService.getLatestRatesFromCacheOrDb()
+                    .map(rateList -> {
+                        log.info("成功获取中行最新汇率数据，共 {} 条记录", rateList.size());
+                        return Result.success(rateList);
+                    })
+                    .orElse(Result.fail(404, "无法获取到中行的汇率数据"));
+        } else {
+            // 调用 ECB 汇率服务（默认）
+            return exchangeRateService.findLatestRate()
+                    .map(rateList -> {
+                        log.info("成功获取 ECB 最新汇率数据，共 {} 条记录", rateList.size());
+                        return Result.success(rateList);
+                    })
+                    .orElse(Result.fail(404, "无法获取到 ECB 的汇率数据"));
+        }
     }
 
     /**

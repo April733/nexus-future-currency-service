@@ -2,6 +2,7 @@ package com.nexusfuture.currency.service;
 
 import com.nexusfuture.currency.client.EcbExchangeRateHttpClient;
 import com.nexusfuture.currency.constant.RedisKeyConstant;
+import com.nexusfuture.currency.dto.CurrencyRateDto;
 import com.nexusfuture.currency.dto.HistoryRateDto;
 import com.nexusfuture.currency.entity.ExchangeRate;
 import com.nexusfuture.currency.mapper.ExchangeRateMapper;
@@ -96,42 +97,62 @@ public class ExchangeRateService {
 
 
     /**
-     * 获取最新汇率 XML
+     * 获取最新汇率数据（返回 DTO 列表）
      * 缓存优先 → 数据库兜底 → 自动回填缓存
      */
-    public Optional<String> findLatestRate() {
+    public Optional<List<CurrencyRateDto>> findLatestRate() {
         RedisCacheService cache = cacheProvider.getIfAvailable();
 
-        // 1. 先读缓存
+        // 1. 先读缓存（RedisCacheService 返回的是 JSON 字符串）
         if (cache != null) {
-            Optional<String> xmlOpt = cache.get(RedisKeyConstant.CURRENCY_ECB, String.class);
-            if (xmlOpt.isPresent()) {
-                log.info("缓存命中，返回 XML {}", xmlOpt.get());
-                log.info("xmlOpt，XML={}", xmlOpt);
-                return xmlOpt;
+            try {
+                Optional<String> cachedJsonOpt = cache.get(RedisKeyConstant.CURRENCY_ECB, String.class);
+                if (cachedJsonOpt.isPresent()) {
+                    List<CurrencyRateDto> cachedList = parseJsonToList(cachedJsonOpt.get());
+                    if (cachedList != null && !cachedList.isEmpty()) {
+                        log.info("缓存命中 [ECB]，返回 {} 条汇率记录", cachedList.size());
+                        return Optional.of(cachedList);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("读取缓存失败 [ECB]，将查询数据库", e);
             }
         }
 
         // 2. 缓存未命中 → 查库
-        log.warn("缓存未命中，查询数据库");
+        log.warn("缓存未命中 [ECB]，查询数据库");
         ExchangeRate rate = exchangeRateMapper.findFirstByOrderByCreateTimeDesc();
         if (rate == null) {
             return Optional.empty();
         }
 
-        String raw = CurrencyXmlParser.parseToCurrencyRateList(rate.getRawXml());
+        String rawJson = CurrencyXmlParser.parseToCurrencyRateList(rate.getRawXml());
+        List<CurrencyRateDto> rateList = parseJsonToList(rawJson);
 
-        // 3. 回填缓存
-        if (cache != null) {
+        // 3. 回填缓存（RedisCacheService 会自动将 List 序列化为 JSON 字符串）
+        if (cache != null && rateList != null && !rateList.isEmpty()) {
             try {
-                cache.set(RedisKeyConstant.CURRENCY_ECB, raw, RedisKeyConstant.TTL);
-                log.info("已自动回填 Redis 缓存，XML={}", raw);
-
+                cache.set(RedisKeyConstant.CURRENCY_ECB, rateList, RedisKeyConstant.TTL);
+                log.info("已自动回填 Redis 缓存 [ECB]，共 {} 条记录", rateList.size());
             } catch (Exception e) {
-                log.error("回填缓存失败", e);
+                log.error("回填缓存失败 [ECB]", e);
             }
         }
-        return Optional.of(raw);
+        return Optional.ofNullable(rateList);
+    }
+
+    /**
+     * 将 JSON 字符串解析为 CurrencyRateDto 列表
+     */
+    private List<CurrencyRateDto> parseJsonToList(String json) {
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            return mapper.readValue(json, 
+                new com.fasterxml.jackson.core.type.TypeReference<List<CurrencyRateDto>>() {});
+        } catch (Exception e) {
+            log.error("解析 JSON 字符串为 DTO 列表失败", e);
+            return new ArrayList<>();
+        }
     }
 
     /**

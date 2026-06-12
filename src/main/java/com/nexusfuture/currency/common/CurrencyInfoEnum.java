@@ -7,39 +7,39 @@ package com.nexusfuture.currency.common;
  */
 public enum CurrencyInfoEnum {
 
-    AUD("Australia", "澳大利亚"),
-    BGN("Bulgaria", "保加利亚"),
-    BRL("Brazil", "巴西"),
-    CAD("Canada", "加拿大"),
-    CHF("Switzerland", "瑞士"),
+    AUD("Australia", "澳大利亚元"),
+//    BGN("Bulgaria", "保加利亚"),
+//    BRL("Brazil", "巴西"),
+//    CAD("Canada", "加拿大"),
+//    CHF("Switzerland", "瑞士"),
     CNY("China", "中国"),
-    CZK("Czech Republic", "捷克"),
-    DKK("Denmark", "丹麦"),
-    GBP("United Kingdom", "英国"),
-    HKD("Hong Kong SAR", "中国香港"),
-    HRK("Croatia", "克罗地亚"),
-    HUF("Hungary", "匈牙利"),
-    IDR("Indonesia", "印度尼西亚"),
-    ILS("Israel", "以色列"),
-    INR("India", "印度"),
-    ISK("Iceland", "冰岛"),
-    JPY("Japan", "日本"),
-    KRW("South Korea", "韩国"),
-    MXN("Mexico", "墨西哥"),
-    MYR("Malaysia", "马来西亚"),
-    NOK("Norway", "挪威"),
-    NZD("New Zealand", "新西兰"),
-    PHP("Philippines", "菲律宾"),
-    PLN("Poland", "波兰"),
-    RON("Romania", "罗马尼亚"),
-    RUB("Russia", "俄罗斯"),
-    SEK("Sweden", "瑞典"),
-    SGD("Singapore", "新加坡"),
-    THB("Thailand", "泰国"),
-    TRY("Turkey", "土耳其"),
-    USD("United States", "美国"),
-    ZAR("South Africa", "南非"),
-    EUR("Euro area", "欧元区");
+//    CZK("Czech Republic", "捷克"),
+//    DKK("Denmark", "丹麦"),
+    GBP("United Kingdom", "英镑"),
+    HKD("Hong Kong SAR", "港币"),
+//    HRK("Croatia", "克罗地亚"),
+//    HUF("Hungary", "匈牙利"),
+    IDR("Indonesia", "印尼卢比"),
+//    ILS("Israel", "以色列"),
+//    INR("India", "印度"),
+//    ISK("Iceland", "冰岛"),
+    JPY("Japan", "日元"),
+    KRW("South Korea", "韩国元"),
+//    MXN("Mexico", "墨西哥"),
+    MYR("Malaysia", "林吉特"),
+//    NOK("Norway", "挪威"),
+    NZD("New Zealand", "新西兰元"),
+//    PHP("Philippines", "菲律宾"),
+//    PLN("Poland", "波兰"),
+//    RON("Romania", "罗马尼亚"),
+//    RUB("Russia", "俄罗斯"),
+//    SEK("Sweden", "瑞典"),
+    SGD("Singapore", "新加坡元"),
+    THB("Thailand", "泰国铢"),
+//    TRY("Turkey", "土耳其"),
+    USD("United States", "美元"),
+//    ZAR("South Africa", "南非"),
+    EUR("Euro area", "欧元");
 
     private final String englishName;
     private final String chineseName;
@@ -94,5 +94,34 @@ public enum CurrencyInfoEnum {
     public static String getChineseNameByCode(String code) {
         CurrencyInfoEnum info = fromCode(code);
         return info != null ? info.getChineseName() : "未收录（" + code + "）";
+    }
+    
+    /**
+     * 根据中文名称或英文名称查找对应的枚举实例。
+     *
+     * @param name 货币的中文名称或英文名称
+     * @return 如果找到，则返回对应的 {@link CurrencyInfoEnum} 实例；否则返回 {@code null}。
+     */
+    public static CurrencyInfoEnum fromName(String name) {
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
+        for (CurrencyInfoEnum currency : values()) {
+            if (currency.getChineseName().equals(name) || 
+                currency.getEnglishName().equalsIgnoreCase(name)) {
+                return currency;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 根据中文名称查找对应的枚举实例（别名方法）。
+     *
+     * @param chineseName 货币的中文名称
+     * @return 如果找到，则返回对应的 {@link CurrencyInfoEnum} 实例；否则返回 {@code null}。
+     */
+    public static CurrencyInfoEnum fromChineseName(String chineseName) {
+        return fromName(chineseName);
     }
 }

@@ -1,22 +1,24 @@
 package com.nexusfuture.currency.ai.functioncall;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper; // 🔥 1. 确保导入
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexusfuture.currency.dto.CurrencyRateDto;
 import com.nexusfuture.currency.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor // 🔥 2. 它会自动为下面的 final 字段生成构造函数
+@RequiredArgsConstructor
 public class GetExchangeRateTool implements ExecutableTool {
 
     private final ExchangeRateService exchangeRateService;
-    private final ObjectMapper objectMapper; // 🔥 3. 增加这一行，Spring 会自动注入
+    private final ObjectMapper objectMapper;
 
     @Override
     public String getName() {
@@ -30,7 +32,6 @@ public class GetExchangeRateTool implements ExecutableTool {
 
     @Override
     public Map<String, Object> getParameters() {
-        // 定义工具所需的参数结构 (JSON Schema 格式)
         Map<String, Object> properties = new java.util.HashMap<>();
         
         Map<String, Object> fromCurrency = new java.util.HashMap<>();
@@ -55,18 +56,39 @@ public class GetExchangeRateTool implements ExecutableTool {
     public String execute(Map<String, Object> arguments) {
         log.info("Executing getExchangeRate tool...");
         try {
-            Optional<String> latestRateOpt = exchangeRateService.findLatestRate();
+            Optional<List<CurrencyRateDto>> latestRateOpt = exchangeRateService.findLatestRate();
             if (latestRateOpt.isPresent()) {
-                log.info("Successfully executed getExchangeRate tool, result: {}", latestRateOpt.get());
-                return latestRateOpt.get();
+                List<CurrencyRateDto> rateList = latestRateOpt.get();
+                log.info("Successfully executed getExchangeRate tool, found {} rates", rateList.size());
+                
+                String fromCurrency = (String) arguments.get("fromCurrency");
+                String toCurrency = (String) arguments.get("toCurrency");
+                
+                CurrencyRateDto targetRate = rateList.stream()
+                    .filter(rate -> rate.getCode().equalsIgnoreCase(toCurrency))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (targetRate != null) {
+                    return objectMapper.writeValueAsString(Map.of(
+                        "code", targetRate.getCode(),
+                        "chineseName", targetRate.getChineseName(),
+                        "englishName", targetRate.getEnglishName(),
+                        "rate", targetRate.getRate()
+                    ));
+                } else {
+                    return objectMapper.writeValueAsString(Map.of(
+                        "error", "未找到货币 " + toCurrency + " 的汇率数据",
+                        "availableCurrencies", rateList.stream().map(CurrencyRateDto::getCode).toList()
+                    ));
+                }
             } else {
                 log.warn("No exchange rate data found.");
-                return "{\"error\": \"未找到任何汇率数据。\"}";
+                return objectMapper.writeValueAsString(Map.of("error", "未找到任何汇率数据。"));
             }
         } catch (Exception e) {
             log.error("Error executing getExchangeRate tool", e);
             try {
-                // 现在 objectMapper 可以正常使用了
                 return objectMapper.writeValueAsString(Map.of("error", "执行工具时发生内部错误: " + e.getMessage()));
             } catch (JsonProcessingException jsonProcessingException) {
                 return "{\"error\": \"执行工具时发生内部错误，并且序列化错误信息也失败了。\"}";

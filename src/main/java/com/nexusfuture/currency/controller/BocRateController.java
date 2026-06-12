@@ -2,13 +2,13 @@ package com.nexusfuture.currency.controller;
 
 import com.nexusfuture.currency.common.Result;
 import com.nexusfuture.currency.dto.BocRateDto;
+import com.nexusfuture.currency.dto.CurrencyRateDto;
 import com.nexusfuture.currency.service.BocExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -19,18 +19,15 @@ public class BocRateController {
     private final BocExchangeRateService bocExchangeRateService;
 
     @GetMapping("/latest")
-    public Result<String> getLatestRates() {
+    public Result<List<CurrencyRateDto>> getLatestRates() {
         log.info("📥 [API] 请求最新中行汇率数据");
         
-        Optional<String> ratesOpt = bocExchangeRateService.getLatestRatesFromCacheOrDb();
-        
-        if (ratesOpt.isPresent()) {
-            log.info("📤 [API] 成功返回中行汇率数据");
-            return Result.success(ratesOpt.get());
-        } else {
-            log.warn("⚠️ [API] 未找到中行汇率数据");
-            return Result.fail(404, "暂无汇率数据，请稍后再试");
-        }
+        return bocExchangeRateService.getLatestRatesFromCacheOrDb()
+                .map(rateList -> {
+                    log.info("📤 [API] 成功返回中行汇率数据，共 {} 条记录", rateList.size());
+                    return Result.success(rateList);
+                })
+                .orElse(Result.fail(404, "暂无汇率数据，请稍后再试"));
     }
 
     @GetMapping("/history")

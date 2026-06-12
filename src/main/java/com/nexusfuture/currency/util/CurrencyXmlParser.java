@@ -3,6 +3,7 @@ package com.nexusfuture.currency.util;
 import com.alibaba.fastjson2.JSON;
 import com.nexusfuture.currency.common.CurrencyInfoEnum;
 import com.nexusfuture.currency.dto.CurrencyRateDto;
+import lombok.extern.slf4j.Slf4j;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class CurrencyXmlParser {
 
     /**
@@ -40,9 +42,12 @@ public class CurrencyXmlParser {
                 String code = currencyAttr.getNodeValue();
                 BigDecimal rate = new BigDecimal(rateAttr.getNodeValue());
 
-                // 绑定枚举 → 拿中英文名称
+                // 绑定枚举 → 拿中英文名称（枚举未定义的货币将被过滤，不展示）
                 CurrencyInfoEnum info = CurrencyInfoEnum.fromCode(code);
-                if (info == null) continue;
+                if (info == null) {
+                    log.debug("跳过未在枚举中定义的货币: {}", code);
+                    continue;
+                }
 
                 list.add(new CurrencyRateDto(
                         code,
@@ -52,7 +57,7 @@ public class CurrencyXmlParser {
                 ));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("解析汇率 XML 失败", e);
         }
         return JSON.toJSONString(list);
     }
