@@ -44,4 +44,5 @@ src/main/resources/application-*.yml
 docker-compose.override.yml
 
 # Docker 相关
+docker-compose.yml
 docker-compose.dev.yml
